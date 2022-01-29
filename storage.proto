@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+service KVStable{
+    rpc write_sstables (EvictedBuffers) returns (EvictionResponse) {}
+    rpc read_sstables (GetRequest) returns (GetResponse) {}
+}
+
+message EvictedBuffers {
+    map<string, bytes> eviction = 1;
+}
+
+message EvictionResponse {
+
+}
+
+message GetRequest {
+    string key = 1;
+}
+
+message GetResponse {
+    bytes value = 1;
+    enum Status {
+        FOUND = 0;
+        NOTFOUND = 1;
+        ERROR = 2;
+    }
+    Status status = 2;
+}
+
