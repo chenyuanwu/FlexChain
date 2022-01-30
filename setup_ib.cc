@@ -12,12 +12,12 @@ int modify_qp_to_rts(struct ibv_qp *qp, uint32_t target_qp_num, uint16_t target_
     /* change QP state to INIT */
     struct ibv_qp_attr init_attr = {
         .qp_state = IBV_QPS_INIT,
-        .pkey_index = 0,
-        .port_num = IB_PORT,
         .qp_access_flags = IBV_ACCESS_LOCAL_WRITE |
                            IBV_ACCESS_REMOTE_READ |
                            IBV_ACCESS_REMOTE_ATOMIC |
                            IBV_ACCESS_REMOTE_WRITE,
+        .pkey_index = 0,
+        .port_num = IB_PORT,
     };
 
     int ret = 0;
@@ -33,15 +33,17 @@ int modify_qp_to_rts(struct ibv_qp *qp, uint32_t target_qp_num, uint16_t target_
     struct ibv_qp_attr rtr_attr = {
         .qp_state = IBV_QPS_RTR,
         .path_mtu = IB_MTU,
-        .dest_qp_num = target_qp_num,
         .rq_psn = 0,
+        .dest_qp_num = target_qp_num,
+        .ah_attr = {
+            .dlid = target_lid,
+            .sl = IB_SL,
+            .src_path_bits = 0,
+            .is_global = 0,
+            .port_num = IB_PORT,
+        },
         .max_dest_rd_atomic = 1,
         .min_rnr_timer = 12,
-        .ah_attr.is_global = 0,
-        .ah_attr.dlid = target_lid,
-        .ah_attr.sl = IB_SL,
-        .ah_attr.src_path_bits = 0,
-        .ah_attr.port_num = IB_PORT,
     };
 
     ret = ibv_modify_qp(qp, &rtr_attr,
@@ -57,11 +59,11 @@ int modify_qp_to_rts(struct ibv_qp *qp, uint32_t target_qp_num, uint16_t target_
     /* Change QP state to RTS */
     struct ibv_qp_attr rts_attr = {
         .qp_state = IBV_QPS_RTS,
+        .sq_psn = 0,
+        .max_rd_atomic = 1,
         .timeout = 14,
         .retry_cnt = 7,
         .rnr_retry = 7,
-        .sq_psn = 0,
-        .max_rd_atomic = 1,
     };
 
     ret = ibv_modify_qp(qp, &rts_attr,
@@ -76,9 +78,7 @@ int modify_qp_to_rts(struct ibv_qp *qp, uint32_t target_qp_num, uint16_t target_
     return 0;
 }
 
-int connect_qp_server() {
-    extern struct MConfigInfo m_config_info;
-    extern struct MemoryIBInfo m_ib_info;
+int connect_qp_server(struct MConfigInfo& m_config_info, struct MemoryIBInfo& m_ib_info) {
     /* accept connections from compute servers (clients) */
     int listen_fd = socket(PF_INET, SOCK_STREAM, 0);
 
@@ -101,6 +101,7 @@ int connect_qp_server() {
             log_info("Compute server #%d connected: IP = %s.", i, inet_ntoa(client_addr.sin_addr));
         } else {
             log_err("Failed to create comm_fds[%d].", i);
+            return -1;
         }
     }
 
@@ -128,6 +129,7 @@ int connect_qp_server() {
             int n = sock_read(comm_fds[i], (char *)&tmp_qp_info, sizeof(struct QPInfo));
             if (n != sizeof(struct QPInfo)) {
                 log_err("Error in reading qp_info from socket.");
+                return -1;
             }
 
             int index = i * m_config_info.num_qps_per_server + j;
@@ -139,6 +141,7 @@ int connect_qp_server() {
         int n = sock_read(comm_fds[i], (char *)&tmp_qp_info, sizeof(struct QPInfo));
         if (n != sizeof(struct QPInfo)) {
             log_err("Error in reading qp_info from socket.");
+            return -1;
         }
 
         remote_qp_info[i + m_ib_info.num_qps].lid = ntohs(tmp_qp_info.lid);
@@ -151,6 +154,7 @@ int connect_qp_server() {
         int n = sock_write(comm_fds[i], (char *)&rkey, sizeof(uint32_t));
         if (n != sizeof(uint32_t)) {
             log_err("Error in writing rkey to socket.");
+            return -1;
         }
 
         for (int j = 0; j < m_config_info.num_qps_per_server; j++) {
@@ -163,6 +167,7 @@ int connect_qp_server() {
             int n = sock_write(comm_fds[i], (char *)&tmp_qp_info, sizeof(struct QPInfo));
             if (n != sizeof(struct QPInfo)) {
                 log_err("Error in writing qp_info to socket.");
+                return -1;
             }
         }
         struct QPInfo tmp_qp_info;
@@ -170,9 +175,10 @@ int connect_qp_server() {
         tmp_qp_info.lid = htons(local_qp_info[i + m_ib_info.num_qps].lid);
         tmp_qp_info.qp_num = htonl(local_qp_info[i + m_ib_info.num_qps].qp_num);
 
-        int n = sock_write(comm_fds[i], (char *)&tmp_qp_info, sizeof(struct QPInfo));
+        n = sock_write(comm_fds[i], (char *)&tmp_qp_info, sizeof(struct QPInfo));
         if (n != sizeof(struct QPInfo)) {
             log_err("Error in writing qp_info to socket.");
+            return -1;
         }
     }
 
@@ -194,6 +200,7 @@ int connect_qp_server() {
                                     (uintptr_t)ctrl_buf, m_ib_info.srq, ctrl_buf);
             if (ret != 0) {
                 log_err("Failed to pre-post recvs into srq.");
+                return -1;
             }
             ctrl_buf += m_config_info.ctrl_msg_size;
         }
@@ -202,6 +209,7 @@ int connect_qp_server() {
     /* request notification */
     if (ibv_req_notify_cq(m_ib_info.bg_cq, 0)) {
         log_err("Failed to request for a notification.");
+        return -1;
     }
 
     /* sync with clients */
@@ -211,6 +219,7 @@ int connect_qp_server() {
         int n = sock_read(comm_fds[i], sock_buf, sizeof(SOCK_SYNC_MSG));
         if (strcmp(sock_buf, SOCK_SYNC_MSG) != 0) {
             log_err("Failed to receive sync from client#%d.", i);
+            return -1;
         }
     }
 
@@ -220,11 +229,11 @@ int connect_qp_server() {
         int n = sock_write(comm_fds[i], sock_buf, sizeof(SOCK_SYNC_MSG));
     }
     log_info("Memory server has synced with all compute servers.");
+
+    return 0;
 }
 
-int memory_setup_ib() {
-    extern struct MConfigInfo m_config_info;
-    extern struct MemoryIBInfo m_ib_info;
+int memory_setup_ib(struct MConfigInfo &m_config_info, struct MemoryIBInfo &m_ib_info) {
     struct ibv_device **dev_list = NULL;
     memset(&m_ib_info, 0, sizeof(struct MemoryIBInfo));
 
@@ -303,8 +312,10 @@ int memory_setup_ib() {
 
     /* create srq */
     struct ibv_srq_init_attr srq_init_attr = {
-        .attr.max_wr = m_ib_info.dev_attr.max_srq_wr,
-        .attr.max_sge = 1,
+        .attr = {
+            .max_wr = m_ib_info.dev_attr.max_srq_wr,
+            .max_sge = 1,
+        },
     };
 
     m_ib_info.srq = ibv_create_srq(m_ib_info.pd, &srq_init_attr);
@@ -358,15 +369,13 @@ int memory_setup_ib() {
     }
 
     /* connect QP */
-    connect_qp_server();
+    connect_qp_server(m_config_info, m_ib_info);
 
     ibv_free_device_list(dev_list);
     return 0;
 }
 
-int connect_qp_client() {
-    extern struct CConfigInfo c_config_info;
-    extern struct ComputeIBInfo c_ib_info;
+int connect_qp_client(struct CConfigInfo& c_config_info, struct ComputeIBInfo& c_ib_info) {
     /* establish connection to the memory server */
     int sockfd = socket(PF_INET, SOCK_STREAM, 0);
 
@@ -400,6 +409,7 @@ int connect_qp_client() {
         int n = sock_write(sockfd, (char *)&tmp_qp_info, sizeof(struct QPInfo));
         if (n != sizeof(struct QPInfo)) {
             log_err("Error in writing qp_info to socket.");
+            return -1;
         }
     }
 
@@ -408,6 +418,7 @@ int connect_qp_client() {
     int n = sock_read(sockfd, (char *)&rkey, sizeof(uint32_t));
     if (n != sizeof(uint32_t)) {
         log_err("Error in reading rkey from socket.");
+        return -1;
     }
     c_ib_info.remote_mr_data_rkey = ntohl(rkey);
     for (int i = 0; i < c_config_info.num_qps_per_server + 1; i++) {
@@ -416,6 +427,7 @@ int connect_qp_client() {
         int n = sock_read(sockfd, (char *)&tmp_qp_info, sizeof(struct QPInfo));
         if (n != sizeof(struct QPInfo)) {
             log_err("Error in reading qp_info from socket.");
+            return -1;
         }
 
         remote_qp_info[i].lid = ntohs(tmp_qp_info.lid);
@@ -434,30 +446,33 @@ int connect_qp_client() {
                         c_ib_info.bg_qp, c_ib_info.ib_bg_buf);
     if (ret != 0) {
         log_err("Failed to pre-post recvs to bg_qp.");
+        return -1;
     }
 
     /* request notification */
     if (ibv_req_notify_cq(c_ib_info.bg_cq, 0)) {
         log_err("Failed to request for a notification.");
+        return -1;
     }
 
     /* sync with server */
     char sock_buf[64];
     bzero(sock_buf, 64);
     strcpy(sock_buf, SOCK_SYNC_MSG);
-    int n = sock_write(sockfd, sock_buf, sizeof(SOCK_SYNC_MSG));
+    n = sock_write(sockfd, sock_buf, sizeof(SOCK_SYNC_MSG));
 
     bzero(sock_buf, 64);
     n = sock_read(sockfd, sock_buf, sizeof(SOCK_SYNC_MSG));
     if (strcmp(sock_buf, SOCK_SYNC_MSG) != 0) {
         log_err("Failed to receive sync from server.");
+        return -1;
     }
     log_info("Computer server has synced with the memory server.");
+
+    return 0;
 }
 
-int compute_setup_ib() {
-    extern struct CConfigInfo c_config_info;
-    extern struct ComputeIBInfo c_ib_info;
+int compute_setup_ib(struct CConfigInfo &c_config_info, struct ComputeIBInfo &c_ib_info) {
     struct ibv_device **dev_list = NULL;
     memset(&c_ib_info, 0, sizeof(struct ComputeIBInfo));
 
@@ -573,7 +588,7 @@ int compute_setup_ib() {
     }
 
     /* connect QP */
-    connect_qp_client();
+    connect_qp_client(c_config_info, c_ib_info);
 
     ibv_free_device_list(dev_list);
     return 0;

@@ -18,7 +18,7 @@ shared_ptr<grpc::Channel> channel_ptr;
 string kv_get(int thread_index, KVStableClient &client, const string &key) {
     /* find cursor of this key */
     pthread_mutex_lock(&metadatacache.hashtable_lock);
-    uint64_t ptr_next = NULL;
+    uint64_t ptr_next = 0;
     auto it = metadatacache.key_hashtable.find(key);
     if (it != metadatacache.key_hashtable.end()) {
         ptr_next = it->second->ptr_next;
@@ -30,7 +30,7 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
     }
     pthread_mutex_unlock(&metadatacache.hashtable_lock);
 
-    if (ptr_next == NULL) {
+    if (ptr_next == 0) {
         /* ask the control plane */
         char *ctrl_buf = c_ib_info.ib_control_buf + thread_index * c_config_info.ctrl_msg_size;
         bzero(ctrl_buf, c_config_info.ctrl_msg_size);
@@ -69,10 +69,10 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
         }
     }
 
-    if (ptr_next != NULL) {
+    if (ptr_next != 0) {
         /* have found cursor of this key */
         pthread_mutex_lock(&datacache.hashtable_lock);
-        uint64_t local_ptr = NULL;
+        uint64_t local_ptr = 0;
         auto it = datacache.addr_hashtable.find(ptr_next);
         if (it != datacache.addr_hashtable.end()) {
             local_ptr = it->second->l_addr;
@@ -83,7 +83,7 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
         }
         pthread_mutex_unlock(&datacache.hashtable_lock);
 
-        if (local_ptr != NULL) {
+        if (local_ptr != 0) {
             /* the buffer is cached locally */
             unsigned long offset = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + key.length();
             char *val_ptr = (char *)local_ptr;
@@ -113,7 +113,7 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
             int ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RDMA_READ);
             uint64_t ptr;
             memcpy(&ptr, (char *)local_ptr, sizeof(uint64_t));
-            assert(ptr == NULL);
+            assert(ptr == 0);
 
             uint8_t invalid;
             char *val_ptr = (char *)local_ptr;
@@ -226,6 +226,8 @@ int kv_put(int thread_index, const string &key, const string &value) {
 
     /* invalidate all CNs' caches including itself */
     //
+
+    return 0;
 }
 
 void *background_handler(void *arg) {
@@ -365,10 +367,15 @@ void *simulation_handler(void *arg) {
         pthread_mutex_unlock(&rq.mutex);
 
         /* the smart contract for microbenchmarks */
+        if (proposal.type == Request::Type::GET) {
+            kv_get(thread_index, client, proposal.key);
+        } else if (proposal.type == Request::Type::PUT) {
+            kv_put(thread_index, proposal.key, proposal.value);
+        }
     }
 }
 
-int run_server() {
+void run_server() {
     /* init local caches and spawn the thread pool */
     for (int offset = 0; offset < c_config_info.data_cache_size; offset += c_config_info.data_msg_size) {
         char *addr = c_ib_info.ib_data_buf + offset;
@@ -388,7 +395,22 @@ int run_server() {
 
     /* accept client transaction proposals */
     /* or implement microbenchmark logics */
-    
+    struct Request req;
+    req.type = Request::Type::PUT;
+    req.key = "key_1111111111";
+    req.value = "value_1111111111";
+    pthread_mutex_lock(&rq.mutex);
+    rq.rq_queue.push(req);
+    pthread_mutex_unlock(&rq.mutex);
+    sem_post(&rq.full);
+
+    sleep(1);
+
+    req.type = Request::Type::GET;
+    pthread_mutex_lock(&rq.mutex);
+    rq.rq_queue.push(req);
+    pthread_mutex_unlock(&rq.mutex);
+    sem_post(&rq.full);
 }
 
 /* return 1 on success, 0 on not found, -1 on error */
@@ -405,7 +427,6 @@ int KVStableClient::read_sstables(const string &key, string &value) {
     } else {
         if (get_rsp.status() == GetResponse_Status_FOUND) {
             value = get_rsp.value();
-            return 1;
         } else if (get_rsp.status() == GetResponse_Status_NOTFOUND) {
             log_err("Failed to find key (%s) on SSTables.", key.c_str());
             return 0;
@@ -414,6 +435,7 @@ int KVStableClient::read_sstables(const string &key, string &value) {
             return -1;
         }
     }
+    return 1;
 }
 
 int main(int argc, char *argv[]) {
@@ -483,7 +505,7 @@ int main(int argc, char *argv[]) {
     channel_ptr = grpc::CreateChannel(c_config_info.grpc_endpoint, grpc::InsecureChannelCredentials());
 
     /* set up RDMA connection with the memory server */
-    compute_setup_ib();
+    compute_setup_ib(c_config_info, c_ib_info);
 
     run_server();
 }

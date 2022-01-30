@@ -29,6 +29,13 @@ using grpc::ClientContext;
 using grpc::Status;
 
 struct Request {
+    enum Type {
+        GET,
+        PUT,
+    };
+    Type type;
+    string key;
+    string value;
 };
 
 class RequestQueue {

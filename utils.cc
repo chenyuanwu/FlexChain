@@ -125,8 +125,12 @@ int post_write_with_imm(uint32_t req_size, uint32_t lkey, uint64_t wr_id, uint32
         .opcode = IBV_WR_RDMA_WRITE_WITH_IMM,
         .send_flags = IBV_SEND_SIGNALED,
         .imm_data = htonl(imm_data),
-        .wr.rdma.remote_addr = raddr,
-        .wr.rdma.rkey = rkey,
+        .wr = {
+            .rdma = {
+                .remote_addr = raddr,
+                .rkey = rkey,
+            }
+        }
     };
 
     ret = ibv_post_send(qp, &send_wr, &bad_send_wr);
@@ -149,8 +153,12 @@ int post_read(uint32_t req_size, uint32_t lkey, uint64_t wr_id,
         .num_sge = 1,
         .opcode = IBV_WR_RDMA_READ,
         .send_flags = IBV_SEND_SIGNALED,
-        .wr.rdma.remote_addr = raddr,
-        .wr.rdma.rkey = rkey,
+        .wr = {
+            .rdma = {
+                .remote_addr = raddr,
+                .rkey = rkey,
+            }
+        }
     };
 
     ret = ibv_post_send(qp, &send_wr, &bad_send_wr);

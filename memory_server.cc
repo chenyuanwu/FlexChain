@@ -286,7 +286,7 @@ void *bookkeeping_agent(void *arg) {
         if (it == key_to_addr.end()) {
             /* pre-populate the key value store, no contention */
             key_to_addr[key].ptr_next = (uintptr_t)(m_ib_info.ib_data_buf + offset);
-            key_to_addr[key].bk_addr = NULL;
+            key_to_addr[key].bk_addr = 0;
             key_to_addr[key].in_memory = true;
             pthread_rwlock_init(&key_to_addr[key].rwlock, NULL);
 
@@ -427,12 +427,12 @@ int main(int argc, char *argv[]) {
     /* set config info */
     m_config_info.num_compute_servers = 1;
     m_config_info.num_qps_per_server = 64;
-    m_config_info.data_msg_size = 4 * 1024;                  // 4KB each data entry
-    m_config_info.data_slab_size = 32 * 1024 * 1024 * 1024;  // 32GB per slab
-    m_config_info.ctrl_msg_size = 1 * 1024;                  // 1KB, maximum size of control message
-    m_config_info.bg_msg_size = 4 * 1024;                    // 4KB, maximum size of background message
-    m_config_info.sock_port = 4711;                          // socket port used by memory server to init RDMA connection
-    m_config_info.grpc_endpoint = "localhost:50051";         // address:port of the grpc server
+    m_config_info.data_msg_size = 4 * 1024;                 // 4KB each data entry
+    m_config_info.data_slab_size = 1 * 1024 * 1024 * 1024;  // 1FGB per slab
+    m_config_info.ctrl_msg_size = 1 * 1024;                 // 1KB, maximum size of control message
+    m_config_info.bg_msg_size = 4 * 1024;                   // 4KB, maximum size of background message
+    m_config_info.sock_port = 4711;                         // socket port used by memory server to init RDMA connection
+    m_config_info.grpc_endpoint = "localhost:50051";        // address:port of the grpc server
 
     int opt;
     string configfile = "config/memory.config";
@@ -487,7 +487,7 @@ int main(int argc, char *argv[]) {
     channel_ptr = grpc::CreateChannel(m_config_info.grpc_endpoint, grpc::InsecureChannelCredentials());
 
     /* set up RDMA connection with compute servers */
-    memory_setup_ib();
+    memory_setup_ib(m_config_info, m_ib_info);
 
     run_server();
 }

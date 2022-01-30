@@ -1,48 +1,34 @@
-# name of the program to build
-#
-PROG=bin/penn-os
+CXX = g++
+CPPFLAGS += `pkg-config --cflags protobuf grpc`
+CXXFLAGS += -std=c++17 -ggdb3
+LDFLAGS += -L/usr/local/lib `pkg-config --libs protobuf grpc++`\
+		   -L./leveldb/build -lleveldb\
+           -pthread -lrdmacm -libverbs\
+           -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed\
+           -ldl
+PROTOC = protoc
+GRPC_CPP_PLUGIN = grpc_cpp_plugin
+GRPC_CPP_PLUGIN_PATH ?= `which $(GRPC_CPP_PLUGIN)`
+PROTOS_PATH = .
 
-PROMPT='"$$ "'
 
-# Remove -DNDEBUG during development if assert(3) is used
-#
-override CPPFLAGS += -DNDEBUG -DPROMPT=$(PROMPT)
+all: compute_server memory_server storage_server
 
-CC = clang
+compute_server: compute_server.cc setup_ib.o utils.o storage.pb.o storage.grpc.pb.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
 
-# Replace -O1 with -g for a debug version during development
-#
-CFLAGS = -Wall -Werror -g
+memory_server: memory_server.cc setup_ib.o utils.o storage.pb.o storage.grpc.pb.o
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
 
-FSTARGET = bin/pennfat
-FSSRCS := $(wildcard src/fs/*.c)
-FSSRCS := $(filter-out src/fs/pennfat.c, $(FSSRCS))
-FSSRCS := $(filter-out src/fs/virtual_pcb.c, $(FSSRCS))
-FSOBJS = $(FSSRCS:.c=.o)
-PENNFAT_ENTRY := src/fs/virtual_pcb.o src/fs/pennfat.o 
+storage_server: storage_server.cc storage.pb.o storage.grpc.pb.o 
+	$(CXX) $(CPPFLAGS) -I./leveldb/include $(CXXFLAGS) $^ $(LDFLAGS) -o $@
 
-SRCS = $(wildcard src/*.c)
-OBJS = $(SRCS:.c=.o)
+%.grpc.pb.cc: %.proto
+	$(PROTOC) -I $(PROTOS_PATH) --grpc_out=. --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN_PATH) $<
 
-.PHONY : clean
+%.pb.cc: %.proto
+	$(PROTOC) -I $(PROTOS_PATH) --cpp_out=. $<
 
-all: fs shell
-
-shell: $(PROG) 
-
-fs: $(FSTARGET)
-
-clean :
-	$(RM) $(OBJS) $(PROG) $(FSOBJS) $(FSTARGET) $(PENNFAT_ENTRY)
-
-$(PROG) : $(OBJS) $(FSOBJS)
-	mkdir -p bin
-	mkdir -p log
-	$(CC) -o $@ -DKERNEL_CONTEXT $^ src/parsejob.o 
-
-$(FSTARGET): $(FSOBJS) $(PENNFAT_ENTRY) 
-	mkdir -p bin
-	$(CC) -o $@ $^ src/parsejob.o 
-	rm -rf src/fs/fat_internal.o src/fs/inode_internal.o  src/fs/inode_internal.o
-	$(CC) $(CFLAGS) $(CPPFLAGS) -DKERNEL_CONTEXT -c -o src/fs/fat_internal.o src/fs/fat_internal.c
-	$(CC) $(CFLAGS) $(CPPFLAGS) -DKERNEL_CONTEXT -c -o src/fs/inode_internal.o src/fs/inode_internal.c
+.PHONY: clean
+clean:
+	rm -f *.o compute_server memory_server storage_server

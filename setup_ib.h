@@ -10,6 +10,8 @@
 #define IB_MTU IBV_MTU_4096
 #define IB_SL 0
 
+using namespace std;
+
 struct MemoryIBInfo {
     /* ib setup information on memory server */
     struct ibv_context *ctx;
@@ -58,14 +60,14 @@ struct ComputeIBInfo {
     char *ib_bg_buf;
 };
 
-int memory_setup_ib();
-int compute_setup_ib();
+int memory_setup_ib(struct MConfigInfo &m_config_info, struct MemoryIBInfo &m_ib_info);
+int compute_setup_ib(struct CConfigInfo &c_config_info, struct ComputeIBInfo &c_ib_info);
 
 // void memory_close_ib();
 // void compute_close_ib();
 
-int connect_qp_server();
-int connect_qp_client();
+int connect_qp_server(struct MConfigInfo &m_config_info, struct MemoryIBInfo &m_ib_info);
+int connect_qp_client(struct CConfigInfo &c_config_info, struct ComputeIBInfo &c_ib_info);
 
 int modify_qp_to_rts(struct ibv_qp *qp, uint32_t target_qp_num, uint16_t target_lid);
 
