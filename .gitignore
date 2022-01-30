@@ -5,3 +5,4 @@ build/
 compute_server
 memory_server
 storage_server
+config/*
