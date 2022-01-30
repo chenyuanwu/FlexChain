@@ -2,7 +2,7 @@ CXX = g++
 CPPFLAGS += `pkg-config --cflags protobuf grpc`
 CXXFLAGS += -std=c++17 -ggdb3
 LDFLAGS += -L/usr/local/lib `pkg-config --libs protobuf grpc++`\
-		   -L./leveldb/build -lleveldb\
+		   -L../leveldb/build -lleveldb\
            -pthread -lrdmacm -libverbs\
            -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed\
            -ldl
@@ -21,7 +21,7 @@ memory_server: memory_server.cc setup_ib.o utils.o storage.pb.o storage.grpc.pb.
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
 
 storage_server: storage_server.cc storage.pb.o storage.grpc.pb.o 
-	$(CXX) $(CPPFLAGS) -I./leveldb/include $(CXXFLAGS) $^ $(LDFLAGS) -o $@
+	$(CXX) $(CPPFLAGS) -I../leveldb/include $(CXXFLAGS) $^ $(LDFLAGS) -o $@
 
 %.grpc.pb.cc: %.proto
 	$(PROTOC) -I $(PROTOS_PATH) --grpc_out=. --plugin=protoc-gen-grpc=$(GRPC_CPP_PLUGIN_PATH) $<
