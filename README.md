@@ -11,7 +11,11 @@ At least 3 r320 instances on CloudLab.
 ## Setup
 ### RDMA setup
 1. Use packages that are shipped with the Linux distribution:
-https://www.rdmamojo.com/2014/11/08/working-rdma-ubuntu/. We used Ubuntu 14-3.11.
+https://www.rdmamojo.com/2014/11/08/working-rdma-ubuntu/. We used Ubuntu 14-3.11. note: use the following command for Ubuntu 14: 
+```shell
+$ sudo apt-get -y --force-yes install libibcm1 libibverbs1 ibverbs-utils librdmacm1 rdmacm-utils ibsim-utils ibutils libcxgb3-1 libibmad5 libibumad3 libmlx4-1 libmthca1 libnes1 mstflint opensm libopensm5 perftest srptools
+```
+
 2. Verify that RDMA on your machine it is working:
 https://www.rdmamojo.com/2015/01/24/verify-rdma-working/
 
