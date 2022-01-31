@@ -40,8 +40,9 @@ Follow instructions in Section "Build and locally install gRPC and Protocol Buff
 
 Several things to note: 
 1. Do not set the ```$MY_INSTALL_DIR``` to be within your home directory when using CloudLab. CloudLab will erase everything in your home directory even when you take a snapshot of disk image.
-2. Avoid using ```make -j```. 
-3. Run the following command before compiling our code:
+2. Use Option A in the following post to update cmake: https://askubuntu.com/questions/355565/how-do-i-install-the-latest-version-of-cmake-from-the-command-line.
+3. Avoid using ```make -j```. 
+4. Run the following command before compiling our code:
 ```shell
 $ export PKG_CONFIG_PATH=$MY_INSTALL_DIR/lib/pkgconfig
 $ export PATH=$PATH:$MY_INSTALL_DIR/bin
