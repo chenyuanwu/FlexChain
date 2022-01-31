@@ -1,4 +1,4 @@
-CXX = g++
+CXX = g++-9
 CPPFLAGS += `pkg-config --cflags protobuf grpc`
 CXXFLAGS += -std=c++17 -ggdb3
 LDFLAGS += -L/usr/local/lib `pkg-config --libs protobuf grpc++`\
