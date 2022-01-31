@@ -3,7 +3,7 @@ CPPFLAGS += `pkg-config --cflags protobuf grpc`
 CXXFLAGS += -std=c++17 -ggdb3
 LDFLAGS += -L/usr/local/lib `pkg-config --libs protobuf grpc++`\
 		   -L../leveldb/build -lleveldb\
-           -pthread -lrdmacm -libverbs\
+           -pthread -libverbs\
            -Wl,--no-as-needed -lgrpc++_reflection -Wl,--as-needed\
            -ldl
 PROTOC = protoc
