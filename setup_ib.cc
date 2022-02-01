@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <malloc.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "config.h"
 #include "log.h"
@@ -294,7 +295,7 @@ int memory_setup_ib(struct MConfigInfo &m_config_info, struct MemoryIBInfo &m_ib
     }
 
     /* create cq */
-    m_ib_info.cq = ibv_create_cq(m_ib_info.ctx, m_ib_info.dev_attr.max_cqe,
+    m_ib_info.cq = ibv_create_cq(m_ib_info.ctx, M_MAX_CQE,
                                  NULL, NULL, 0);
     if (m_ib_info.cq == NULL) {
         log_err("Failed to create cq.");
@@ -304,7 +305,7 @@ int memory_setup_ib(struct MConfigInfo &m_config_info, struct MemoryIBInfo &m_ib
     if (m_ib_info.comp_channel == NULL) {
         log_err("Failed to create completion channel.");
     }
-    m_ib_info.bg_cq = ibv_create_cq(m_ib_info.ctx, m_ib_info.dev_attr.max_cqe,
+    m_ib_info.bg_cq = ibv_create_cq(m_ib_info.ctx, M_MAX_CQE,
                                     NULL, m_ib_info.comp_channel, 0);
     if (m_ib_info.bg_cq == NULL) {
         log_err("Failed to create bg_cq.");
@@ -313,7 +314,7 @@ int memory_setup_ib(struct MConfigInfo &m_config_info, struct MemoryIBInfo &m_ib
     /* create srq */
     struct ibv_srq_init_attr srq_init_attr = {
         .attr = {
-            .max_wr = m_ib_info.dev_attr.max_srq_wr,
+            .max_wr = MAX_SRQ_WR,
             .max_sge = 1,
         },
     };
@@ -329,8 +330,8 @@ int memory_setup_ib(struct MConfigInfo &m_config_info, struct MemoryIBInfo &m_ib
         .recv_cq = m_ib_info.cq,
         .srq = m_ib_info.srq,
         .cap = {
-            .max_send_wr = m_ib_info.dev_attr.max_qp_wr,
-            .max_recv_wr = m_ib_info.dev_attr.max_qp_wr,
+            .max_send_wr = MAX_QP_WR,
+            .max_recv_wr = MAX_QP_WR,
             .max_send_sge = 1,
             .max_recv_sge = 1,
         },
@@ -355,8 +356,8 @@ int memory_setup_ib(struct MConfigInfo &m_config_info, struct MemoryIBInfo &m_ib
             .send_cq = m_ib_info.bg_cq,
             .recv_cq = m_ib_info.bg_cq,
             .cap = {
-                .max_send_wr = m_ib_info.dev_attr.max_qp_wr,
-                .max_recv_wr = m_ib_info.dev_attr.max_qp_wr,
+                .max_send_wr = MAX_QP_WR,
+                .max_recv_wr = MAX_QP_WR,
                 .max_send_sge = 1,
                 .max_recv_sge = 1,
             },
@@ -534,10 +535,10 @@ int compute_setup_ib(struct CConfigInfo &c_config_info, struct ComputeIBInfo &c_
     c_ib_info.num_qps = c_config_info.num_qps_per_server;
     c_ib_info.cq = (struct ibv_cq **)calloc(c_ib_info.num_qps, sizeof(struct ibv_cq *));
     for (int i = 0; i < c_ib_info.num_qps; i++) {
-        c_ib_info.cq[i] = ibv_create_cq(c_ib_info.ctx, c_ib_info.dev_attr.max_cqe,
+        c_ib_info.cq[i] = ibv_create_cq(c_ib_info.ctx, C_MAX_CQE,
                                         NULL, NULL, 0);
         if (c_ib_info.cq[i] == NULL) {
-            log_err("Failed to create cq[%d].", i);
+            log_err("Failed to create cq[%d]. %s.", i, strerror(errno));
         }
     }
 
@@ -545,7 +546,7 @@ int compute_setup_ib(struct CConfigInfo &c_config_info, struct ComputeIBInfo &c_
     if (c_ib_info.comp_channel == NULL) {
         log_err("Failed to create completion channel.");
     }
-    c_ib_info.bg_cq = ibv_create_cq(c_ib_info.ctx, c_ib_info.dev_attr.max_cqe,
+    c_ib_info.bg_cq = ibv_create_cq(c_ib_info.ctx, C_MAX_CQE,
                                     NULL, c_ib_info.comp_channel, 0);
     if (c_ib_info.bg_cq == NULL) {
         log_err("Failed to create bg_cq.");
@@ -558,8 +559,8 @@ int compute_setup_ib(struct CConfigInfo &c_config_info, struct ComputeIBInfo &c_
             .send_cq = c_ib_info.cq[i],
             .recv_cq = c_ib_info.cq[i],
             .cap = {
-                .max_send_wr = c_ib_info.dev_attr.max_qp_wr,
-                .max_recv_wr = c_ib_info.dev_attr.max_qp_wr,
+                .max_send_wr = MAX_QP_WR,
+                .max_recv_wr = MAX_QP_WR,
                 .max_send_sge = 1,
                 .max_recv_sge = 1,
             },
@@ -575,8 +576,8 @@ int compute_setup_ib(struct CConfigInfo &c_config_info, struct ComputeIBInfo &c_
         .send_cq = c_ib_info.bg_cq,
         .recv_cq = c_ib_info.bg_cq,
         .cap = {
-            .max_send_wr = c_ib_info.dev_attr.max_qp_wr,
-            .max_recv_wr = c_ib_info.dev_attr.max_qp_wr,
+            .max_send_wr = MAX_QP_WR,
+            .max_recv_wr = MAX_QP_WR,
             .max_send_sge = 1,
             .max_recv_sge = 1,
         },

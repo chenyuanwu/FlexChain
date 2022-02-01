@@ -9,6 +9,10 @@
 #define IB_PORT 1
 #define IB_MTU IBV_MTU_4096
 #define IB_SL 0
+#define C_MAX_CQE 10
+#define M_MAX_CQE 100
+#define MAX_SRQ_WR 100
+#define MAX_QP_WR 10
 
 using namespace std;
 
