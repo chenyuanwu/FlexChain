@@ -256,7 +256,7 @@ int memory_setup_ib(struct MConfigInfo &m_config_info, struct MemoryIBInfo &m_ib
     }
 
     /* query IB port attribute */
-    if (!ibv_query_port(m_ib_info.ctx, IB_PORT, &m_ib_info.port_attr)) {
+    if (ibv_query_port(m_ib_info.ctx, IB_PORT, &m_ib_info.port_attr)) {
         log_err("Failed to query IB port information.");
     }
 
@@ -289,7 +289,7 @@ int memory_setup_ib(struct MConfigInfo &m_config_info, struct MemoryIBInfo &m_ib
     pthread_mutex_init(&m_ib_info.bg_buf_lock, NULL);
 
     /* query IB device attr */
-    if (!ibv_query_device(m_ib_info.ctx, &m_ib_info.dev_attr)) {
+    if (ibv_query_device(m_ib_info.ctx, &m_ib_info.dev_attr)) {
         log_err("Failed to query device.");
     }
 
@@ -495,7 +495,7 @@ int compute_setup_ib(struct CConfigInfo &c_config_info, struct ComputeIBInfo &c_
     }
 
     /* query IB port attribute */
-    if (!ibv_query_port(c_ib_info.ctx, IB_PORT, &c_ib_info.port_attr)) {
+    if (ibv_query_port(c_ib_info.ctx, IB_PORT, &c_ib_info.port_attr)) {
         log_err("Failed to query IB port information.");
     }
 
@@ -526,7 +526,7 @@ int compute_setup_ib(struct CConfigInfo &c_config_info, struct ComputeIBInfo &c_
     }
 
     /* query IB device attr */
-    if (!ibv_query_device(c_ib_info.ctx, &c_ib_info.dev_attr)) {
+    if (ibv_query_device(c_ib_info.ctx, &c_ib_info.dev_attr)) {
         log_err("Failed to query device.");
     }
 
