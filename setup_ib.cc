@@ -236,7 +236,6 @@ int connect_qp_server(struct MConfigInfo& m_config_info, struct MemoryIBInfo& m_
 
 int memory_setup_ib(struct MConfigInfo &m_config_info, struct MemoryIBInfo &m_ib_info) {
     struct ibv_device **dev_list = NULL;
-    memset(&m_ib_info, 0, sizeof(struct MemoryIBInfo));
 
     /* get IB device list */
     dev_list = ibv_get_device_list(NULL);
@@ -475,7 +474,6 @@ int connect_qp_client(struct CConfigInfo& c_config_info, struct ComputeIBInfo& c
 
 int compute_setup_ib(struct CConfigInfo &c_config_info, struct ComputeIBInfo &c_ib_info) {
     struct ibv_device **dev_list = NULL;
-    memset(&c_ib_info, 0, sizeof(struct ComputeIBInfo));
 
     /* get IB device list */
     dev_list = ibv_get_device_list(NULL);
