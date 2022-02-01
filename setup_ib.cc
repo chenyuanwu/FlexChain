@@ -99,7 +99,7 @@ int connect_qp_server(struct MConfigInfo& m_config_info, struct MemoryIBInfo& m_
     for (int i = 0; i < m_config_info.num_compute_servers; i++) {
         comm_fds[i] = accept(listen_fd, (struct sockaddr *)&client_addr, &client_addr_len);
         if (comm_fds[i] > 0) {
-            log_info("Compute server #%d connected: IP = %s.", i, inet_ntoa(client_addr.sin_addr));
+            log_info(stderr, "Compute server #%d connected: IP = %s.", i, inet_ntoa(client_addr.sin_addr));
         } else {
             log_err("Failed to create comm_fds[%d].", i);
             return -1;
@@ -229,7 +229,7 @@ int connect_qp_server(struct MConfigInfo& m_config_info, struct MemoryIBInfo& m_
     for (int i = 0; i < m_config_info.num_compute_servers; i++) {
         int n = sock_write(comm_fds[i], sock_buf, sizeof(SOCK_SYNC_MSG));
     }
-    log_info("Memory server has synced with all compute servers.");
+    log_info(stderr, "Memory server has synced with all compute servers.");
 
     return 0;
 }
@@ -468,7 +468,7 @@ int connect_qp_client(struct CConfigInfo& c_config_info, struct ComputeIBInfo& c
         log_err("Failed to receive sync from server.");
         return -1;
     }
-    log_info("Computer server has synced with the memory server.");
+    log_info(stderr, "Computer server has synced with the memory server.");
 
     return 0;
 }

@@ -19,6 +19,7 @@ using grpc::Status;
 
 leveldb::DB* db;
 leveldb::Options options;
+pthread_mutex_t logger_lock;
 
 class KVStableImpl final : public KVStable::Service {
    public:
@@ -67,7 +68,7 @@ void run_server(const std::string& db_name, const std::string& server_address) {
     builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
     builder.RegisterService(&service);
     std::unique_ptr<Server> server(builder.BuildAndStart());
-    log_info("Server listening on %s", server_address.c_str());
+    log_info(stderr, "Server listening on %s", server_address.c_str());
     server->Wait();
 }
 
@@ -96,6 +97,9 @@ int main(int argc, char* argv[]) {
                 break;
         }
     }
+
+    /* init logger */
+    pthread_mutex_init(&logger_lock, NULL);
 
     run_server(db_name, server_address);
 

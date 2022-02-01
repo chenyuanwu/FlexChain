@@ -13,6 +13,8 @@ RequestQueue rq;
 DataCache datacache;
 MetaDataCache metadatacache;
 shared_ptr<grpc::Channel> channel_ptr;
+pthread_mutex_t logger_lock;
+FILE *logger_fp;
 
 /* read from the disaggregated key value store */
 string kv_get(int thread_index, KVStableClient &client, const string &key) {
@@ -107,6 +109,7 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
             pthread_mutex_unlock(&datacache.hashtable_lock);
 
             /* find the latest version */
+            bzero((char *)local_ptr, c_config_info.data_msg_size);
             post_read(c_config_info.data_msg_size, c_ib_info.mr_data->lkey, local_ptr, c_ib_info.qp[thread_index],
                       (char *)local_ptr, ptr_next, c_ib_info.remote_mr_data_rkey);
             // chain walk is not needed for M-C topology
@@ -368,9 +371,14 @@ void *simulation_handler(void *arg) {
 
         /* the smart contract for microbenchmarks */
         if (proposal.type == Request::Type::GET) {
-            kv_get(thread_index, client, proposal.key);
+            string value;
+            value = kv_get(thread_index, client, proposal.key);
+            log_info(logger_fp, "thread_index = #%d\trequest_type = GET\nget_key = %s\nget_value = %s\n",
+                     thread_index, proposal.key.c_str(), value.c_str());
         } else if (proposal.type == Request::Type::PUT) {
             kv_put(thread_index, proposal.key, proposal.value);
+            log_info(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\nput_value = %s\n",
+                     thread_index, proposal.key.c_str(), proposal.value.c_str());
         }
     }
 }
@@ -500,6 +508,10 @@ int main(int argc, char *argv[]) {
     }
     c_config_info.ctrl_buffer_size = c_config_info.ctrl_msg_size * c_config_info.num_qps_per_server;
     assert(c_config_info.data_cache_size % c_config_info.data_msg_size == 0);
+
+    /* init logger */
+    pthread_mutex_init(&logger_lock, NULL);
+    logger_fp = fopen("compute_server.log", "w+");
 
     /* set up grpc channel */
     channel_ptr = grpc::CreateChannel(c_config_info.grpc_endpoint, grpc::InsecureChannelCredentials());

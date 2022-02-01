@@ -14,6 +14,7 @@ SpaceAllocator space_allocator;
 GarbageCollector gc;
 unordered_map<string, struct EntryHeader> key_to_addr;
 shared_ptr<grpc::Channel> channel_ptr;
+pthread_mutex_t logger_lock;
 
 void *space_manager(void *arg) {
     while (true) {
@@ -482,6 +483,9 @@ int main(int argc, char *argv[]) {
     }
     m_config_info.ctrl_buffer_size = m_config_info.ctrl_msg_size * m_config_info.num_qps_per_server * m_config_info.num_compute_servers;
     m_config_info.bg_buffer_size = m_config_info.bg_msg_size * m_config_info.num_compute_servers;
+
+    /* init logger */
+    pthread_mutex_init(&logger_lock, NULL);
 
     /* set up grpc channel */
     channel_ptr = grpc::CreateChannel(m_config_info.grpc_endpoint, grpc::InsecureChannelCredentials());
