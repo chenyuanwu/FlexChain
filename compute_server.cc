@@ -472,11 +472,6 @@ int KVStableClient::read_sstables(const string &key, string &value) {
     return 1;
 }
 
-void sig_handler(int signo) {
-    fflush(logger_fp);
-    exit(0);
-}
-
 int main(int argc, char *argv[]) {
     /* set config info */
     c_config_info.num_qps_per_server = 64;
@@ -541,7 +536,6 @@ int main(int argc, char *argv[]) {
     assert(c_config_info.data_cache_size % c_config_info.data_msg_size == 0);
 
     /* init logger */
-    signal(SIGINT, sig_handler);
     pthread_mutex_init(&logger_lock, NULL);
     logger_fp = fopen("compute_server.log", "w+");
 

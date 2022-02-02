@@ -28,6 +28,7 @@ extern pthread_mutex_t logger_lock;
         pthread_mutex_lock(&logger_lock);            \
         fprintf(fp, "[INFO]" M "\n", ##__VA_ARGS__); \
         pthread_mutex_unlock(&logger_lock);          \
+        fflush(fp);                                  \
     } while (0)
 
 #endif
