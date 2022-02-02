@@ -1,6 +1,7 @@
 #include "compute_server.h"
 
 #include <assert.h>
+#include <signal.h>
 
 #include "config.h"
 #include "log.h"
@@ -413,13 +414,11 @@ void run_server() {
 
     pthread_t bg_tid;
     pthread_create(&bg_tid, NULL, background_handler, NULL);
-    pthread_detach(bg_tid);
 
     int num_threads = c_config_info.num_qps_per_server;
     pthread_t tid[num_threads];
     for (int i = 0; i < num_threads; i++) {
         pthread_create(&tid[i], NULL, simulation_handler, &i);
-        pthread_detach(tid[i]);
     }
 
     /* accept client transaction proposals */
@@ -440,6 +439,12 @@ void run_server() {
     rq.rq_queue.push(req);
     pthread_mutex_unlock(&rq.mutex);
     sem_post(&rq.full);
+
+    void *status;
+    for (int i = 0; i < num_threads; i++) {
+        pthread_join(tid[i], &status);
+    }
+    pthread_join(bg_tid, &status);
 }
 
 /* return 1 on success, 0 on not found, -1 on error */
@@ -465,6 +470,11 @@ int KVStableClient::read_sstables(const string &key, string &value) {
         }
     }
     return 1;
+}
+
+void sig_handler(int signo) {
+    fflush(logger_fp);
+    exit(0);
 }
 
 int main(int argc, char *argv[]) {
@@ -531,6 +541,7 @@ int main(int argc, char *argv[]) {
     assert(c_config_info.data_cache_size % c_config_info.data_msg_size == 0);
 
     /* init logger */
+    signal(SIGINT, sig_handler);
     pthread_mutex_init(&logger_lock, NULL);
     logger_fp = fopen("compute_server.log", "w+");
 
