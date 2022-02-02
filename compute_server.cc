@@ -29,6 +29,7 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
         metadatacache.lru_list.erase(it->second);
         auto it_new = metadatacache.lru_list.insert(metadatacache.lru_list.begin(), h);  // update lru list and pointer in hashtable
         it->second = it_new;
+        log_info(stderr, "kv_get[key = %s]: remote address 0x%lx is found in local metadata cache.", key.c_str(), ptr_next);
     }
     pthread_mutex_unlock(&metadatacache.hashtable_lock);
 
@@ -55,6 +56,7 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
         char *read_buf = ctrl_buf;
         if (strncmp(read_buf, BACKOFF_MSG, CTL_MSG_TYPE_SIZE) == 0) {
             /* in evection now */
+            log_info(stderr, "kv_get[key = %s]: remote buffer of this key is in eviction, retry.", key.c_str());
             usleep(2000);
             return kv_get(thread_index, client, key);
         } else if (strncmp(read_buf, FOUND_MSG, CTL_MSG_TYPE_SIZE) == 0) {
@@ -68,6 +70,9 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
             auto it_new = metadatacache.lru_list.insert(metadatacache.lru_list.begin(), h);
             metadatacache.key_hashtable[key] = it_new;
             pthread_mutex_unlock(&metadatacache.hashtable_lock);
+
+            log_info(stderr, "kv_get[key = %s]: remote address 0x%lx is found by contacting the control plane.",
+                     key.c_str(), ptr_next);
         }
     }
 
@@ -87,6 +92,8 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
 
         if (local_ptr != 0) {
             /* the buffer is cached locally */
+            log_info(stderr, "kv_get[key = %s]: found in local data cache (raddr = 0x%lx, laddr = 0x%lx).",
+                     key.c_str(), ptr_next, local_ptr);
             unsigned long offset = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + key.length();
             char *val_ptr = (char *)local_ptr;
             val_ptr += offset;
@@ -117,6 +124,8 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
             uint64_t ptr;
             memcpy(&ptr, (char *)local_ptr, sizeof(uint64_t));
             assert(ptr == 0);
+            log_info(stderr, "kv_get[key = %s]: finished RDMA read from remote memory pool (raddr = 0x%lx).",
+                     key.c_str(), ptr_next);
 
             uint8_t invalid;
             char *val_ptr = (char *)local_ptr;
@@ -125,6 +134,8 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
 
             if (invalid) {
                 /* in eviction now */
+                log_info(stderr, "kv_get[key = %s]: invalid buffer (raddr = 0x%lx) due to eviction, discard and retry.",
+                         key.c_str(), ptr_next);
                 datacache.free_addrs.push(local_ptr);
                 usleep(2000);
                 return kv_get(thread_index, client, key);
@@ -144,9 +155,9 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
                 return string(val_ptr, c_config_info.data_msg_size - offset);
             }
         }
-
     } else {
         /* search in SSTables on the storage server */
+        log_info(stderr, "kv_get[key = %s]: read from sstables.", key.c_str());
         string value;
         int ret = client.read_sstables(key, value);
         return value;
@@ -199,6 +210,7 @@ int kv_put(int thread_index, const string &key, const string &value) {
     ctrl_buf += sizeof(uint64_t);
     uint32_t index;
     memcpy(&index, ctrl_buf, sizeof(uint32_t));
+    log_info(stderr, "kv_put[key = %s]: remote addr 0x%lx is allocated.", key.c_str(), remote_ptr);
 
     post_write_with_imm(c_config_info.data_msg_size, c_ib_info.mr_data->lkey, local_ptr, index,
                         c_ib_info.qp[thread_index], (char *)local_ptr, remote_ptr, c_ib_info.remote_mr_data_rkey);
@@ -223,9 +235,11 @@ int kv_put(int thread_index, const string &key, const string &value) {
     auto it_meta = metadatacache.lru_list.insert(metadatacache.lru_list.begin(), h);
     metadatacache.key_hashtable[key] = it_meta;
     pthread_mutex_unlock(&metadatacache.hashtable_lock);
+    log_info(stderr, "kv_put[key = %s]: local caches are updated.", key.c_str());
 
     /* poll RDMA write completion: write-through cache */
-    ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RECV_RDMA_WITH_IMM);
+    ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RDMA_WRITE);
+    log_info(stderr, "kv_put[key = %s]: finished RDMA write to remote addr 0x%lx.", key.c_str(), remote_ptr);
 
     /* invalidate all CNs' caches including itself */
     //
@@ -239,6 +253,7 @@ void *background_handler(void *arg) {
         wait_completion(c_ib_info.comp_channel, c_ib_info.bg_cq, IBV_WC_RECV, 1);
 
         if (strncmp(c_ib_info.ib_bg_buf, EVICT_MSG, CTL_MSG_TYPE_SIZE) == 0) {
+            log_info(stderr, "background handler[eviction]: received buffer eviction request, sending my lru keys.");
             /* send my local LRU keys to the memory server */
             char *write_buf = c_ib_info.ib_bg_buf;
             pthread_mutex_lock(&metadatacache.hashtable_lock);
@@ -262,6 +277,7 @@ void *background_handler(void *arg) {
             wait_completion(c_ib_info.comp_channel, c_ib_info.bg_cq, IBV_WC_RECV, 1);
 
             /* invalidation */
+            log_info(stderr, "background handler[eviction]: received invalidation request, begin invalidation.");
             set<string> keys_to_inval;
             set<uint64_t> r_addrs_to_inval;
             char *read_buf = c_ib_info.ib_bg_buf;
@@ -308,6 +324,8 @@ void *background_handler(void *arg) {
             }
             pthread_mutex_unlock(&datacache.hashtable_lock);
 
+            log_info(stderr, "background handler[eviction]: finished invalidating local caches, sending ack.");
+
             write_buf = c_ib_info.ib_bg_buf;
             bzero(write_buf, c_config_info.bg_msg_size);
             memcpy(write_buf, INVAL_COMP_MSG, CTL_MSG_TYPE_SIZE);
@@ -315,6 +333,7 @@ void *background_handler(void *arg) {
                       c_ib_info.bg_qp, c_ib_info.ib_bg_buf);
 
         } else if (strncmp(c_ib_info.ib_bg_buf, GC_MSG, CTL_MSG_TYPE_SIZE) == 0) {
+            log_info(stderr, "background handler[gc]: received gc request, begin invalidation.");
             /* GC: invalidate the GCed keys */
             set<string> keys_to_inval;
             char *read_buf = c_ib_info.ib_bg_buf;
@@ -345,6 +364,8 @@ void *background_handler(void *arg) {
                 }
             }
             pthread_mutex_unlock(&metadatacache.hashtable_lock);
+
+            log_info(stderr, "background handler[gc]: finished invalidating local caches, sending ack.");
 
             char *write_buf = c_ib_info.ib_bg_buf;
             bzero(write_buf, c_config_info.bg_msg_size);

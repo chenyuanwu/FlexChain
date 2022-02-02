@@ -46,6 +46,7 @@ void *space_manager(void *arg) {
         int qp_idx = m_ib_info.qp_num_to_idx[wc.qp_num];
         post_send(m_config_info.ctrl_msg_size, m_ib_info.mr_control->lkey, wc.wr_id, 0,
                   m_ib_info.qp[qp_idx], msg_ptr);
+        log_info(stderr, "space manager: buffer addr 0x%lx is allocated to compute nodes.", free_addr);
     }
 }
 
