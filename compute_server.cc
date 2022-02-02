@@ -216,6 +216,10 @@ int kv_put(int thread_index, const string &key, const string &value) {
     post_write_with_imm(c_config_info.data_msg_size, c_ib_info.mr_data->lkey, local_ptr, index,
                         c_ib_info.qp[thread_index], (char *)local_ptr, remote_ptr, c_ib_info.remote_mr_data_rkey);
 
+    /* poll RDMA write completion: write-through cache */
+    ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RDMA_WRITE);
+    log_info(stderr, "kv_put[key = %s]: finished RDMA write to remote addr 0x%lx.", key.c_str(), remote_ptr);
+
     /* update local caches */
     struct DataCache::Frame f = {
         .l_addr = local_ptr,
@@ -237,10 +241,6 @@ int kv_put(int thread_index, const string &key, const string &value) {
     metadatacache.key_hashtable[key] = it_meta;
     pthread_mutex_unlock(&metadatacache.hashtable_lock);
     log_info(stderr, "kv_put[key = %s]: local caches are updated.", key.c_str());
-
-    /* poll RDMA write completion: write-through cache */
-    ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RDMA_WRITE);
-    log_info(stderr, "kv_put[key = %s]: finished RDMA write to remote addr 0x%lx.", key.c_str(), remote_ptr);
 
     /* invalidate all CNs' caches including itself */
     //
@@ -423,22 +423,28 @@ void run_server() {
 
     /* accept client transaction proposals */
     /* or implement microbenchmark logics */
-    struct Request req;
-    req.type = Request::Type::PUT;
-    req.key = "key_1111111111";
-    req.value = "value_1111111111";
-    pthread_mutex_lock(&rq.mutex);
-    rq.rq_queue.push(req);
-    pthread_mutex_unlock(&rq.mutex);
-    sem_post(&rq.full);
+    for (int i = 0; i < 50; i++) {
+        struct Request req;
+        req.type = Request::Type::PUT;
+        req.key = "key_" + to_string(i);
+        req.value = "value_" + to_string(i);
+        pthread_mutex_lock(&rq.mutex);
+        rq.rq_queue.push(req);
+        pthread_mutex_unlock(&rq.mutex);
+        sem_post(&rq.full);
+    }
 
-    sleep(1);
+    sleep(5);
 
-    req.type = Request::Type::GET;
-    pthread_mutex_lock(&rq.mutex);
-    rq.rq_queue.push(req);
-    pthread_mutex_unlock(&rq.mutex);
-    sem_post(&rq.full);
+    for (int i = 0; i < 50; i++) {
+        struct Request req;
+        req.key = "key_" + to_string(i);
+        req.type = Request::Type::GET;
+        pthread_mutex_lock(&rq.mutex);
+        rq.rq_queue.push(req);
+        pthread_mutex_unlock(&rq.mutex);
+        sem_post(&rq.full);
+    }
 
     void *status;
     for (int i = 0; i < num_threads; i++) {
