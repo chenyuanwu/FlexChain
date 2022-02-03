@@ -49,11 +49,11 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
         memcpy(write_buf, key.c_str(), key_len);
 
         post_send(c_config_info.ctrl_msg_size, c_ib_info.mr_control->lkey, (uintptr_t)ctrl_buf, 0,
-                  c_ib_info.qp[thread_index], ctrl_buf);
+                  c_ib_info.qp[thread_index], ctrl_buf, to_string(thread_index), to_string(__LINE__));
         post_recv(c_config_info.ctrl_msg_size, c_ib_info.mr_control->lkey, (uintptr_t)ctrl_buf,
-                  c_ib_info.qp[thread_index], ctrl_buf);
+                  c_ib_info.qp[thread_index], ctrl_buf, to_string(thread_index), to_string(__LINE__));
 
-        int ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RECV);
+        int ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RECV, __LINE__);
 
         char *read_buf = ctrl_buf;
         if (strncmp(read_buf, BACKOFF_MSG, CTL_MSG_TYPE_SIZE) == 0) {
@@ -121,9 +121,9 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
             /* find the latest version */
             bzero((char *)local_ptr, c_config_info.data_msg_size);
             post_read(c_config_info.data_msg_size, c_ib_info.mr_data->lkey, local_ptr, c_ib_info.qp[thread_index],
-                      (char *)local_ptr, ptr_next, c_ib_info.remote_mr_data_rkey);
+                      (char *)local_ptr, ptr_next, c_ib_info.remote_mr_data_rkey, to_string(thread_index), to_string(__LINE__));
             // chain walk is not needed for M-C topology
-            int ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RDMA_READ);
+            int ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RDMA_READ, __LINE__);
             uint64_t ptr;
             memcpy(&ptr, (char *)local_ptr, sizeof(uint64_t));
             assert(ptr == 0);
@@ -175,9 +175,9 @@ int kv_put(int thread_index, const string &key, const string &value) {
     memcpy(ctrl_buf, ALLOC_MSG, CTL_MSG_TYPE_SIZE);
 
     post_send(c_config_info.ctrl_msg_size, c_ib_info.mr_control->lkey, (uintptr_t)ctrl_buf, 0,
-              c_ib_info.qp[thread_index], ctrl_buf);
+              c_ib_info.qp[thread_index], ctrl_buf, to_string(thread_index), to_string(__LINE__));
     post_recv(c_config_info.ctrl_msg_size, c_ib_info.mr_control->lkey, (uintptr_t)ctrl_buf,
-              c_ib_info.qp[thread_index], ctrl_buf);
+              c_ib_info.qp[thread_index], ctrl_buf, to_string(thread_index), to_string(__LINE__));
 
     /* allocate a local buffer, write to local buffer */
     pthread_mutex_lock(&datacache.hashtable_lock);
@@ -207,7 +207,7 @@ int kv_put(int thread_index, const string &key, const string &value) {
     memcpy(write_ptr, value.c_str(), value.length());
 
     /* write to remote buffer */
-    int ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RECV);
+    int ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RECV, __LINE__);
     uint64_t remote_ptr;
     memcpy(&remote_ptr, ctrl_buf, sizeof(uint64_t));
     ctrl_buf += sizeof(uint64_t);
@@ -216,13 +216,13 @@ int kv_put(int thread_index, const string &key, const string &value) {
     log_info(stderr, "kv_put[thread_index = %d, key = %s]: remote addr 0x%lx is allocated.",
              thread_index, key.c_str(), remote_ptr);
 
-    post_write_with_imm(c_config_info.data_msg_size, c_ib_info.mr_data->lkey, local_ptr, index,
-                        c_ib_info.qp[thread_index], (char *)local_ptr, remote_ptr, c_ib_info.remote_mr_data_rkey);
+    post_write_with_imm(c_config_info.data_msg_size, c_ib_info.mr_data->lkey, local_ptr, index, c_ib_info.qp[thread_index],
+                        (char *)local_ptr, remote_ptr, c_ib_info.remote_mr_data_rkey, to_string(thread_index), to_string(__LINE__));
     post_recv(c_config_info.ctrl_msg_size, c_ib_info.mr_control->lkey, (uintptr_t)ctrl_buf,
-              c_ib_info.qp[thread_index], ctrl_buf);
+              c_ib_info.qp[thread_index], ctrl_buf, to_string(thread_index), to_string(__LINE__));
 
     /* poll RDMA write completion: write-through cache */
-    ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RECV);
+    ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RECV, __LINE__);
     if (strncmp(ctrl_buf, COMMITTED_MSG, CTL_MSG_TYPE_SIZE) != 0) {
         log_err("thread[%d]: failed to receive message committed ack.", thread_index);
         return -1;
@@ -262,7 +262,7 @@ int kv_put(int thread_index, const string &key, const string &value) {
 void *background_handler(void *arg) {
     while (true) {
         /* block wait for incoming message */
-        wait_completion(c_ib_info.comp_channel, c_ib_info.bg_cq, IBV_WC_RECV, 1);
+        wait_completion(c_ib_info.comp_channel, c_ib_info.bg_cq, IBV_WC_RECV, 1, __LINE__);
 
         if (strncmp(c_ib_info.ib_bg_buf, EVICT_MSG, CTL_MSG_TYPE_SIZE) == 0) {
             log_info(stderr, "background handler[eviction]: received buffer eviction request, sending my lru keys.");
@@ -282,11 +282,11 @@ void *background_handler(void *arg) {
             pthread_mutex_unlock(&metadatacache.hashtable_lock);
 
             post_send(c_config_info.bg_msg_size, c_ib_info.mr_bg->lkey, (uintptr_t)c_ib_info.ib_bg_buf, 0,
-                      c_ib_info.bg_qp, c_ib_info.ib_bg_buf);
+                      c_ib_info.bg_qp, c_ib_info.ib_bg_buf, __func__, to_string(__LINE__));
             post_recv(c_config_info.bg_msg_size, c_ib_info.mr_bg->lkey, (uintptr_t)c_ib_info.ib_bg_buf,
-                      c_ib_info.bg_qp, c_ib_info.ib_bg_buf);
+                      c_ib_info.bg_qp, c_ib_info.ib_bg_buf, __func__, to_string(__LINE__));
 
-            wait_completion(c_ib_info.comp_channel, c_ib_info.bg_cq, IBV_WC_RECV, 1);
+            wait_completion(c_ib_info.comp_channel, c_ib_info.bg_cq, IBV_WC_RECV, 1, __LINE__);
 
             /* invalidation */
             log_info(stderr, "background handler[eviction]: received invalidation request, begin invalidation.");
@@ -342,7 +342,7 @@ void *background_handler(void *arg) {
             bzero(write_buf, c_config_info.bg_msg_size);
             memcpy(write_buf, INVAL_COMP_MSG, CTL_MSG_TYPE_SIZE);
             post_send(CTL_MSG_TYPE_SIZE, c_ib_info.mr_bg->lkey, (uintptr_t)c_ib_info.ib_bg_buf, 0,
-                      c_ib_info.bg_qp, c_ib_info.ib_bg_buf);
+                      c_ib_info.bg_qp, c_ib_info.ib_bg_buf, __func__, to_string(__LINE__));
 
         } else if (strncmp(c_ib_info.ib_bg_buf, GC_MSG, CTL_MSG_TYPE_SIZE) == 0) {
             log_info(stderr, "background handler[gc]: received gc request, begin invalidation.");
@@ -383,7 +383,7 @@ void *background_handler(void *arg) {
             bzero(write_buf, c_config_info.bg_msg_size);
             memcpy(write_buf, GC_COMP_MSG, CTL_MSG_TYPE_SIZE);
             post_send(CTL_MSG_TYPE_SIZE, c_ib_info.mr_bg->lkey, (uintptr_t)c_ib_info.ib_bg_buf, 0,
-                      c_ib_info.bg_qp, c_ib_info.ib_bg_buf);
+                      c_ib_info.bg_qp, c_ib_info.ib_bg_buf, __func__, to_string(__LINE__));
         }
     }
 }

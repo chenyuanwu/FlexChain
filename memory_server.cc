@@ -45,7 +45,7 @@ void *space_manager(void *arg) {
 
         int qp_idx = m_ib_info.qp_num_to_idx[wc.qp_num];
         post_send(m_config_info.ctrl_msg_size, m_ib_info.mr_control->lkey, wc.wr_id, 0,
-                  m_ib_info.qp[qp_idx], msg_ptr);
+                  m_ib_info.qp[qp_idx], msg_ptr, __func__, to_string(__LINE__));
         log_info(stderr, "space manager: buffer addr 0x%lx is allocated to compute nodes.", free_addr);
     }
 }
@@ -70,11 +70,13 @@ void *eviction_manager(void *arg) {
             char *bg_buf = m_ib_info.ib_bg_buf + i * m_config_info.bg_msg_size;
             bzero(bg_buf, m_config_info.bg_msg_size);
             memcpy(bg_buf, EVICT_MSG, CTL_MSG_TYPE_SIZE);
-            post_send(CTL_MSG_TYPE_SIZE, m_ib_info.mr_bg->lkey, (uintptr_t)bg_buf, 0, m_ib_info.bg_qp[i], bg_buf);
-            post_recv(m_config_info.bg_msg_size, m_ib_info.mr_bg->lkey, (uintptr_t)bg_buf, m_ib_info.bg_qp[i], bg_buf);
+            post_send(CTL_MSG_TYPE_SIZE, m_ib_info.mr_bg->lkey, (uintptr_t)bg_buf, 0, m_ib_info.bg_qp[i], bg_buf,
+                      __func__, to_string(__LINE__));
+            post_recv(m_config_info.bg_msg_size, m_ib_info.mr_bg->lkey, (uintptr_t)bg_buf, m_ib_info.bg_qp[i], bg_buf,
+                      __func__, to_string(__LINE__));
         }
 
-        wait_completion(m_ib_info.comp_channel, m_ib_info.bg_cq, IBV_WC_RECV, m_config_info.num_compute_servers);
+        wait_completion(m_ib_info.comp_channel, m_ib_info.bg_cq, IBV_WC_RECV, m_config_info.num_compute_servers, __LINE__);
 
         set<string> lru_keys;
         for (int i = 0; i < m_config_info.num_compute_servers; i++) {
@@ -129,19 +131,19 @@ void *eviction_manager(void *arg) {
             write_buf += sizeof(uint64_t);
         }
         post_send(m_config_info.bg_msg_size, m_ib_info.mr_bg->lkey, (uintptr_t)m_ib_info.ib_bg_buf, 0,
-                  m_ib_info.bg_qp[0], m_ib_info.ib_bg_buf);
+                  m_ib_info.bg_qp[0], m_ib_info.ib_bg_buf, __func__, to_string(__LINE__));
         post_recv(m_config_info.bg_msg_size, m_ib_info.mr_bg->lkey, (uintptr_t)m_ib_info.ib_bg_buf,
-                  m_ib_info.bg_qp[0], m_ib_info.ib_bg_buf);
+                  m_ib_info.bg_qp[0], m_ib_info.ib_bg_buf, __func__, to_string(__LINE__));
         for (int i = 1; i < m_config_info.num_compute_servers; i++) {
             write_buf = m_ib_info.ib_bg_buf + i * m_config_info.bg_msg_size;
             memcpy(write_buf, m_ib_info.ib_bg_buf, m_config_info.bg_msg_size);
             post_send(m_config_info.bg_msg_size, m_ib_info.mr_bg->lkey, (uintptr_t)write_buf, 0,
-                      m_ib_info.bg_qp[i], write_buf);
+                      m_ib_info.bg_qp[i], write_buf, __func__, to_string(__LINE__));
             post_recv(m_config_info.bg_msg_size, m_ib_info.mr_bg->lkey, (uintptr_t)write_buf,
-                      m_ib_info.bg_qp[i], write_buf);
+                      m_ib_info.bg_qp[i], write_buf, __func__, to_string(__LINE__));
         }
 
-        wait_completion(m_ib_info.comp_channel, m_ib_info.bg_cq, IBV_WC_RECV, m_config_info.num_compute_servers);
+        wait_completion(m_ib_info.comp_channel, m_ib_info.bg_cq, IBV_WC_RECV, m_config_info.num_compute_servers, __LINE__);
 
         /* mark the evicted buffers as free */
         for (int i = 0; i < m_config_info.num_compute_servers; i++) {
@@ -202,19 +204,19 @@ void *gc_manager(void *arg) {
             write_buf += key_len;
         }
         post_send(m_config_info.bg_msg_size, m_ib_info.mr_bg->lkey, (uintptr_t)m_ib_info.ib_bg_buf, 0,
-                  m_ib_info.bg_qp[0], m_ib_info.ib_bg_buf);
+                  m_ib_info.bg_qp[0], m_ib_info.ib_bg_buf, __func__, to_string(__LINE__));
         post_recv(m_config_info.bg_msg_size, m_ib_info.mr_bg->lkey, (uintptr_t)m_ib_info.ib_bg_buf,
-                  m_ib_info.bg_qp[0], m_ib_info.ib_bg_buf);
+                  m_ib_info.bg_qp[0], m_ib_info.ib_bg_buf, __func__, to_string(__LINE__));
         for (int i = 1; i < m_config_info.num_compute_servers; i++) {
             write_buf = m_ib_info.ib_bg_buf + i * m_config_info.bg_msg_size;
             memcpy(write_buf, m_ib_info.ib_bg_buf, m_config_info.bg_msg_size);
             post_send(m_config_info.bg_msg_size, m_ib_info.mr_bg->lkey, (uintptr_t)write_buf, 0,
-                      m_ib_info.bg_qp[i], write_buf);
+                      m_ib_info.bg_qp[i], write_buf, __func__, to_string(__LINE__));
             post_recv(m_config_info.bg_msg_size, m_ib_info.mr_bg->lkey, (uintptr_t)write_buf,
-                      m_ib_info.bg_qp[i], write_buf);
+                      m_ib_info.bg_qp[i], write_buf, __func__, to_string(__LINE__));
         }
 
-        wait_completion(m_ib_info.comp_channel, m_ib_info.bg_cq, IBV_WC_RECV, m_config_info.num_compute_servers);
+        wait_completion(m_ib_info.comp_channel, m_ib_info.bg_cq, IBV_WC_RECV, m_config_info.num_compute_servers, __LINE__);
 
         /* mark the buffers as free */
         for (int i = 0; i < m_config_info.num_compute_servers; i++) {
@@ -275,7 +277,7 @@ void *address_manager(void *arg) {
         msg_ptr = (char *)wc.wr_id;
         int qp_idx = m_ib_info.qp_num_to_idx[wc.qp_num];
         post_send(m_config_info.ctrl_msg_size, m_ib_info.mr_control->lkey, wc.wr_id, 0,
-                  m_ib_info.qp[qp_idx], msg_ptr);
+                  m_ib_info.qp[qp_idx], msg_ptr, __func__, to_string(__LINE__));
     }
 }
 
@@ -345,7 +347,7 @@ void *bookkeeping_agent(void *arg) {
         }
         int qp_idx = m_ib_info.qp_num_to_idx[wc.qp_num];
         post_send(m_config_info.ctrl_msg_size, m_ib_info.mr_control->lkey, wc.wr_id, 0,
-                  m_ib_info.qp[qp_idx], msg_ptr);
+                  m_ib_info.qp[qp_idx], msg_ptr, __func__, to_string(__LINE__));
     }
 }
 
@@ -395,7 +397,7 @@ int run_server() {
                 char *msg_ptr = (char *)wc[i].wr_id;
                 bzero(msg_ptr, m_config_info.ctrl_msg_size);
                 post_srq_recv(m_config_info.ctrl_msg_size, m_ib_info.mr_control->lkey, wc[i].wr_id,
-                              m_ib_info.srq, msg_ptr);
+                              m_ib_info.srq, msg_ptr, __func__, to_string(__LINE__));
             } else {
                 RequestQueue *rq;
                 if (wc[i].opcode == IBV_WC_RECV) {

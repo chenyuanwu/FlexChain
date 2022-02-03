@@ -49,7 +49,7 @@ int sock_write(int sock_fd, char *buf, size_t len) {
 }
 
 int post_srq_recv(uint32_t req_size, uint32_t lkey, uint64_t wr_id,
-                  struct ibv_srq *srq, char *buf) {
+                  struct ibv_srq *srq, char *buf, const string thread_id, const string line) {
     int ret = 0;
     struct ibv_recv_wr *bad_recv_wr;
 
@@ -64,11 +64,14 @@ int post_srq_recv(uint32_t req_size, uint32_t lkey, uint64_t wr_id,
         .num_sge = 1};
 
     ret = ibv_post_srq_recv(srq, &recv_wr, &bad_recv_wr);
+    if (ret) {
+        log_err("thread[%s]:%s: ibv_post_srq_recv failed with status '%s'.", thread_id.c_str(), line.c_str(), strerror(errno));
+    }
     return ret;
 }
 
 int post_recv(uint32_t req_size, uint32_t lkey, uint64_t wr_id,
-              struct ibv_qp *qp, char *buf) {
+              struct ibv_qp *qp, char *buf, const string thread_id, const string line) {
     int ret = 0;
     struct ibv_recv_wr *bad_recv_wr;
 
@@ -83,11 +86,14 @@ int post_recv(uint32_t req_size, uint32_t lkey, uint64_t wr_id,
         .num_sge = 1};
 
     ret = ibv_post_recv(qp, &recv_wr, &bad_recv_wr);
+    if (ret) {
+        log_err("thread[%s]:%s: ibv_post_recv failed with status '%s'.", thread_id.c_str(), line.c_str(), strerror(errno));
+    }
     return ret;
 }
 
 int post_send(uint32_t req_size, uint32_t lkey, uint64_t wr_id,
-              uint32_t imm_data, struct ibv_qp *qp, char *buf) {
+              uint32_t imm_data, struct ibv_qp *qp, char *buf, const string thread_id, const string line) {
     int ret = 0;
     struct ibv_send_wr *bad_send_wr;
 
@@ -105,11 +111,14 @@ int post_send(uint32_t req_size, uint32_t lkey, uint64_t wr_id,
         .imm_data = htonl(imm_data)};
 
     ret = ibv_post_send(qp, &send_wr, &bad_send_wr);
+    if (ret) {
+        log_err("thread[%s]:%s: ibv_post_send failed with status '%s'.", thread_id.c_str(), line.c_str(), strerror(errno));
+    }
     return ret;
 }
 
 int post_write_with_imm(uint32_t req_size, uint32_t lkey, uint64_t wr_id, uint32_t imm_data,
-                        struct ibv_qp *qp, char *buf, uint64_t raddr, uint32_t rkey) {
+                        struct ibv_qp *qp, char *buf, uint64_t raddr, uint32_t rkey, const string thread_id, const string line) {
     int ret = 0;
     struct ibv_send_wr *bad_send_wr;
 
@@ -129,16 +138,17 @@ int post_write_with_imm(uint32_t req_size, uint32_t lkey, uint64_t wr_id, uint32
             .rdma = {
                 .remote_addr = raddr,
                 .rkey = rkey,
-            }
-        }
-    };
+            }}};
 
     ret = ibv_post_send(qp, &send_wr, &bad_send_wr);
+    if (ret) {
+        log_err("thread[%s]:%s: ibv_post_send (RDMA_WRITE_WITH_IMM) failed with status '%s'.", thread_id.c_str(), line.c_str(), strerror(errno));
+    }
     return ret;
 }
 
 int post_read(uint32_t req_size, uint32_t lkey, uint64_t wr_id,
-              struct ibv_qp *qp, char *buf, uint64_t raddr, uint32_t rkey) {
+              struct ibv_qp *qp, char *buf, uint64_t raddr, uint32_t rkey, const string thread_id, const string line) {
     int ret = 0;
     struct ibv_send_wr *bad_send_wr;
 
@@ -157,15 +167,16 @@ int post_read(uint32_t req_size, uint32_t lkey, uint64_t wr_id,
             .rdma = {
                 .remote_addr = raddr,
                 .rkey = rkey,
-            }
-        }
-    };
+            }}};
 
     ret = ibv_post_send(qp, &send_wr, &bad_send_wr);
+    if (ret) {
+        log_err("thread[%s]:%s: ibv_post_send (RDMA_READ) failed with status '%s'.", thread_id.c_str(), line.c_str(), strerror(errno));
+    }
     return ret;
 }
 
-int poll_completion(int thread_index, struct ibv_cq *cq, enum ibv_wc_opcode target_opcode) {
+int poll_completion(int thread_index, struct ibv_cq *cq, enum ibv_wc_opcode target_opcode, int line) {
     int num_wc = 20;
     struct ibv_wc *wc;
     wc = (struct ibv_wc *)calloc(num_wc, sizeof(struct ibv_wc));
@@ -173,16 +184,16 @@ int poll_completion(int thread_index, struct ibv_cq *cq, enum ibv_wc_opcode targ
     while (true) {
         int n = ibv_poll_cq(cq, num_wc, wc);
         if (n < 0) {
-            log_err("thread[%d]: Failed to poll cq.", thread_index);
+            log_err("thread[%d]:%d: failed to poll cq.", thread_index, line);
             free(wc);
             return -1;
         }
         for (int i = 0; i < n; i++) {
             if (wc[i].status != IBV_WC_SUCCESS) {
                 if (wc[i].opcode == IBV_WC_SEND) {
-                    log_err("thread[%d]: send failed with status %s", thread_index, ibv_wc_status_str(wc[i].status));
+                    log_err("thread[%d]:%d: send failed with status '%s'.", thread_index, line, ibv_wc_status_str(wc[i].status));
                 } else {
-                    log_err("thread[%d]: recv failed with status %s", thread_index, ibv_wc_status_str(wc[i].status));
+                    log_err("thread[%d]:%d: recv failed with status '%s'.", thread_index, line, ibv_wc_status_str(wc[i].status));
                 }
                 free(wc);
                 return -1;
@@ -200,20 +211,20 @@ int poll_completion(int thread_index, struct ibv_cq *cq, enum ibv_wc_opcode targ
 }
 
 /* blocks the calling thread until work completion */
-void wait_completion(ibv_comp_channel *comp_channel, ibv_cq *cq, enum ibv_wc_opcode target_opcode, int target) {
+void wait_completion(ibv_comp_channel *comp_channel, ibv_cq *cq, enum ibv_wc_opcode target_opcode, int target, int line) {
     int target_count = 0;
     while (target_count < target) {
         struct ibv_cq *ev_cq;
         void *ev_ctx;
 
         if (ibv_get_cq_event(comp_channel, &ev_cq, &ev_ctx)) {
-            log_err("Failed to wait for a completion event.");
+            log_err("line %d: failed to wait for a completion event.", line);
         }
 
         ibv_ack_cq_events(cq, 1);
 
         if (ibv_req_notify_cq(cq, 0)) {
-            log_err("Failed to request for a notification.");
+            log_err("line %d: failed to request for a notification.", line);
         }
 
         int ne;
@@ -224,11 +235,11 @@ void wait_completion(ibv_comp_channel *comp_channel, ibv_cq *cq, enum ibv_wc_opc
                 continue;
             }
             if (ne < 0) {
-                log_err("Failed to poll bg_cq.");
+                log_err("line %d: failed to poll bg_cq.", line);
                 break;
             }
             if (wc.status != IBV_WC_SUCCESS) {
-                log_err("WC failed with status %s in bg_cq.", ibv_wc_status_str(wc.status));
+                log_err("line %d: WC failed with status %s in bg_cq.", line, ibv_wc_status_str(wc.status));
                 break;
             } else {
                 if (wc.opcode == target_opcode) {
