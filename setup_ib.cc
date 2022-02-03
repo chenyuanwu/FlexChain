@@ -88,9 +88,15 @@ int connect_qp_server(struct MConfigInfo& m_config_info, struct MemoryIBInfo& m_
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = htons(INADDR_ANY);
     server_addr.sin_port = htons(m_config_info.sock_port);
-    bind(listen_fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    if (bind(listen_fd, (struct sockaddr *)&server_addr, sizeof(server_addr))) {
+        log_err("Failed to bind server_addr to socket. %s.", strerror(errno));
+        return -1;
+    }
 
-    listen(listen_fd, m_config_info.num_compute_servers);
+    if (listen(listen_fd, m_config_info.num_compute_servers)) {
+        log_err("Failed to listen. %s.", strerror(errno));
+        return -1;
+    }
 
     int *comm_fds;
     comm_fds = (int *)calloc(m_config_info.num_compute_servers, sizeof(int));
@@ -384,7 +390,10 @@ int connect_qp_client(struct CConfigInfo& c_config_info, struct ComputeIBInfo& c
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(c_config_info.sock_port);
     inet_pton(AF_INET, c_config_info.sock_addr.c_str(), &(server_addr.sin_addr));
-    connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr));
+    if (connect(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr))) {
+        log_err("Failed to connect to memory server. %s.", strerror(errno));
+        return -1;
+    }
 
     /* init local qp_info */
     struct QPInfo *local_qp_info;

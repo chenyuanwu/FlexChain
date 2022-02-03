@@ -30,7 +30,8 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
         metadatacache.lru_list.erase(it->second);
         auto it_new = metadatacache.lru_list.insert(metadatacache.lru_list.begin(), h);  // update lru list and pointer in hashtable
         it->second = it_new;
-        log_info(stderr, "kv_get[key = %s]: remote address 0x%lx is found in local metadata cache.", key.c_str(), ptr_next);
+        log_info(stderr, "kv_get[thread_index = %d, key = %s]: remote address 0x%lx is found in local metadata cache.",
+                 thread_index, key.c_str(), ptr_next);
     }
     pthread_mutex_unlock(&metadatacache.hashtable_lock);
 
@@ -57,7 +58,8 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
         char *read_buf = ctrl_buf;
         if (strncmp(read_buf, BACKOFF_MSG, CTL_MSG_TYPE_SIZE) == 0) {
             /* in evection now */
-            log_info(stderr, "kv_get[key = %s]: remote buffer of this key is in eviction, retry.", key.c_str());
+            log_info(stderr, "kv_get[thread_index = %d, key = %s]: remote buffer of this key is in eviction, retry.",
+                     thread_index, key.c_str());
             usleep(2000);
             return kv_get(thread_index, client, key);
         } else if (strncmp(read_buf, FOUND_MSG, CTL_MSG_TYPE_SIZE) == 0) {
@@ -72,8 +74,8 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
             metadatacache.key_hashtable[key] = it_new;
             pthread_mutex_unlock(&metadatacache.hashtable_lock);
 
-            log_info(stderr, "kv_get[key = %s]: remote address 0x%lx is found by contacting the control plane.",
-                     key.c_str(), ptr_next);
+            log_info(stderr, "kv_get[thread_index = %d, key = %s]: remote address 0x%lx is found by contacting the control plane.",
+                     thread_index, key.c_str(), ptr_next);
         }
     }
 
@@ -93,8 +95,8 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
 
         if (local_ptr != 0) {
             /* the buffer is cached locally */
-            log_info(stderr, "kv_get[key = %s]: found in local data cache (raddr = 0x%lx, laddr = 0x%lx).",
-                     key.c_str(), ptr_next, local_ptr);
+            log_info(stderr, "kv_get[thread_index = %d, key = %s]: found in local data cache (raddr = 0x%lx, laddr = 0x%lx).",
+                     thread_index, key.c_str(), ptr_next, local_ptr);
             unsigned long offset = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + key.length();
             char *val_ptr = (char *)local_ptr;
             val_ptr += offset;
@@ -125,8 +127,8 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
             uint64_t ptr;
             memcpy(&ptr, (char *)local_ptr, sizeof(uint64_t));
             assert(ptr == 0);
-            log_info(stderr, "kv_get[key = %s]: finished RDMA read from remote memory pool (raddr = 0x%lx).",
-                     key.c_str(), ptr_next);
+            log_info(stderr, "kv_get[thread_index = %d, key = %s]: finished RDMA read from remote memory pool (raddr = 0x%lx).",
+                     thread_index, key.c_str(), ptr_next);
 
             uint8_t invalid;
             char *val_ptr = (char *)local_ptr;
@@ -135,8 +137,8 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
 
             if (invalid) {
                 /* in eviction now */
-                log_info(stderr, "kv_get[key = %s]: invalid buffer (raddr = 0x%lx) due to eviction, discard and retry.",
-                         key.c_str(), ptr_next);
+                log_info(stderr, "kv_get[thread_index = %d, key = %s]: invalid buffer (raddr = 0x%lx) due to eviction, discard and retry.",
+                         thread_index, key.c_str(), ptr_next);
                 datacache.free_addrs.push(local_ptr);
                 usleep(2000);
                 return kv_get(thread_index, client, key);
@@ -158,7 +160,7 @@ string kv_get(int thread_index, KVStableClient &client, const string &key) {
         }
     } else {
         /* search in SSTables on the storage server */
-        log_info(stderr, "kv_get[key = %s]: read from sstables.", key.c_str());
+        log_info(stderr, "kv_get[thread_index = %d, key = %s]: read from sstables.", thread_index, key.c_str());
         string value;
         int ret = client.read_sstables(key, value);
         return value;
@@ -211,14 +213,23 @@ int kv_put(int thread_index, const string &key, const string &value) {
     ctrl_buf += sizeof(uint64_t);
     uint32_t index;
     memcpy(&index, ctrl_buf, sizeof(uint32_t));
-    log_info(stderr, "kv_put[key = %s]: remote addr 0x%lx is allocated.", key.c_str(), remote_ptr);
+    log_info(stderr, "kv_put[thread_index = %d, key = %s]: remote addr 0x%lx is allocated.",
+             thread_index, key.c_str(), remote_ptr);
 
     post_write_with_imm(c_config_info.data_msg_size, c_ib_info.mr_data->lkey, local_ptr, index,
                         c_ib_info.qp[thread_index], (char *)local_ptr, remote_ptr, c_ib_info.remote_mr_data_rkey);
+    post_recv(c_config_info.ctrl_msg_size, c_ib_info.mr_control->lkey, (uintptr_t)ctrl_buf,
+              c_ib_info.qp[thread_index], ctrl_buf);
 
     /* poll RDMA write completion: write-through cache */
-    ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RDMA_WRITE);
-    log_info(stderr, "kv_put[key = %s]: finished RDMA write to remote addr 0x%lx.", key.c_str(), remote_ptr);
+    ret = poll_completion(thread_index, c_ib_info.cq[thread_index], IBV_WC_RECV);
+    if (strncmp(ctrl_buf, COMMITTED_MSG, CTL_MSG_TYPE_SIZE) != 0) {
+        log_err("thread[%d]: failed to receive message committed ack.", thread_index);
+        return -1;
+    }
+
+    log_info(stderr, "kv_put[thread_index = %d, key = %s]: finished RDMA write to remote addr 0x%lx, committed.",
+             thread_index, key.c_str(), remote_ptr);
 
     /* update local caches */
     struct DataCache::Frame f = {
@@ -240,7 +251,7 @@ int kv_put(int thread_index, const string &key, const string &value) {
     auto it_meta = metadatacache.lru_list.insert(metadatacache.lru_list.begin(), h);
     metadatacache.key_hashtable[key] = it_meta;
     pthread_mutex_unlock(&metadatacache.hashtable_lock);
-    log_info(stderr, "kv_put[key = %s]: local caches are updated.", key.c_str());
+    log_info(stderr, "kv_put[thread_index = %d, key = %s]: local caches are updated.", thread_index, key.c_str());
 
     /* invalidate all CNs' caches including itself */
     //
@@ -398,9 +409,14 @@ void *simulation_handler(void *arg) {
             log_info(logger_fp, "thread_index = #%d\trequest_type = GET\nget_key = %s\nget_value = %s\n",
                      thread_index, proposal.key.c_str(), value.c_str());
         } else if (proposal.type == Request::Type::PUT) {
-            kv_put(thread_index, proposal.key, proposal.value);
-            log_info(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\nput_value = %s\n",
-                     thread_index, proposal.key.c_str(), proposal.value.c_str());
+            int ret = kv_put(thread_index, proposal.key, proposal.value);
+            if (!ret) {
+                log_info(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\nput_value = %s\n",
+                         thread_index, proposal.key.c_str(), proposal.value.c_str());
+            } else {
+                log_info(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\noperation failed...\n",
+                         thread_index, proposal.key.c_str());
+            }
         }
     }
 }
@@ -436,15 +452,15 @@ void run_server() {
 
     sleep(5);
 
-    for (int i = 0; i < 50; i++) {
-        struct Request req;
-        req.key = "key_" + to_string(i);
-        req.type = Request::Type::GET;
-        pthread_mutex_lock(&rq.mutex);
-        rq.rq_queue.push(req);
-        pthread_mutex_unlock(&rq.mutex);
-        sem_post(&rq.full);
-    }
+    // for (int i = 0; i < 50; i++) {
+    //     struct Request req;
+    //     req.key = "key_" + to_string(i);
+    //     req.type = Request::Type::GET;
+    //     pthread_mutex_lock(&rq.mutex);
+    //     rq.rq_queue.push(req);
+    //     pthread_mutex_unlock(&rq.mutex);
+    //     sem_post(&rq.full);
+    // }
 
     void *status;
     for (int i = 0; i < num_threads; i++) {
