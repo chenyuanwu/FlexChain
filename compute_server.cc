@@ -443,6 +443,17 @@ void run_server() {
         ctxs[i].m_qp = c_ib_info.qp[i];
         ctxs[i].m_cq = c_ib_info.cq[i];
         pthread_create(&tid[i], NULL, simulation_handler, &ctxs[i]);
+
+        /* stick thread to a core for better performance */
+        int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
+        int core_id = i % num_cores;
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(core_id, &cpuset);
+        int ret = pthread_setaffinity_np(tid[i], sizeof(cpu_set_t), &cpuset);
+        if (ret) {
+            log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
+        }
     }
 
     /* accept client transaction proposals */
