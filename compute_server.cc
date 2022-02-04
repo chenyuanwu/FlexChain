@@ -209,10 +209,11 @@ int kv_put(struct ThreadContext &ctx, const string &key, const string &value) {
     /* write to remote buffer */
     int ret = poll_completion(ctx.thread_index, ctx.m_cq, IBV_WC_RECV, __LINE__);
     uint64_t remote_ptr;
-    memcpy(&remote_ptr, ctrl_buf, sizeof(uint64_t));
-    ctrl_buf += sizeof(uint64_t);
+    char *read_ptr = ctrl_buf;
+    memcpy(&remote_ptr, read_ptr, sizeof(uint64_t));
+    read_ptr += sizeof(uint64_t);
     uint32_t index;
-    memcpy(&index, ctrl_buf, sizeof(uint32_t));
+    memcpy(&index, read_ptr, sizeof(uint32_t));
     log_info(stderr, "kv_put[thread_index = %d, key = %s]: remote addr 0x%lx is allocated.",
              ctx.thread_index, key.c_str(), remote_ptr);
 
