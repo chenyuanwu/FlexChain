@@ -38,6 +38,12 @@ struct Request {
     string value;
 };
 
+struct ThreadContext {
+    int thread_index;
+    struct ibv_qp *m_qp;
+    struct ibv_cq *m_cq;
+};
+
 class RequestQueue {
    public:
     queue<struct Request> rq_queue;
