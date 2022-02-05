@@ -3,14 +3,16 @@
 #include <grpcpp/server.h>
 #include <grpcpp/server_builder.h>
 #include <grpcpp/server_context.h>
+
 #include <cassert>
 #include <filesystem>
 #include <iostream>
+#include <string>
 
-#include "storage.grpc.pb.h"
 #include "leveldb/db.h"
 #include "leveldb/write_batch.h"
 #include "log.h"
+#include "storage.grpc.pb.h"
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -27,10 +29,16 @@ class KVStableImpl final : public KVStable::Service {
         leveldb::WriteBatch batch;
         for (auto it = request->eviction().begin(); it != request->eviction().end(); it++) {
             batch.Put(it->first, it->second);
+
+            std::string actual_value;
+            unsigned long offset = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + it->first.length();
+            actual_value = it->second.substr(offset);
+
+            log_info(stderr, "write[key = %s]: value = %s is add to the batch.", it->first.c_str(), actual_value.c_str());
         }
         leveldb::Status s = db->Write(leveldb::WriteOptions(), &batch);
         if (!s.ok()) {
-            log_err("%s", s.ToString().c_str());
+            log_err("error %s occurred in writing the batch.", s.ToString().c_str());
         }
         return Status::OK;
     }
@@ -38,21 +46,28 @@ class KVStableImpl final : public KVStable::Service {
     Status read_sstables(ServerContext* context, const GetRequest* request, GetResponse* response) override {
         std::string value;
         leveldb::Status s = db->Get(leveldb::ReadOptions(), request->key(), &value);
-        
+
         if (s.ok()) {
             response->set_value(value);
             response->set_status(GetResponse_Status_FOUND);
-        } else {
-            if (s.IsNotFound()) {
-                response->set_status(GetResponse_Status_NOTFOUND);
-            } else {
-                response->set_status(GetResponse_Status_ERROR);
-                log_err("%s", s.ToString().c_str());
-            }
+
+            std::string actual_value;
+            unsigned long offset = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + request->key().length();
+            actual_value = value.substr(offset);
+
+            log_info(stderr, "read[key = %s]: found value = %s.", request->key().c_str(), actual_value.c_str());
         }
+        if (s.IsNotFound()) {
+            response->set_status(GetResponse_Status_NOTFOUND);
+            log_info(stderr, "read[key = %s]: key not found in leveldb.", request->key().c_str());
+        }
+        if ((!s.ok()) && (!s.IsNotFound())) {
+            response->set_status(GetResponse_Status_ERROR);
+            log_err("error '%s' occurred in reading key = %s.", s.ToString().c_str(), request->key().c_str());
+        }
+
         return Status::OK;
     }
-
 };
 
 void run_server(const std::string& db_name, const std::string& server_address) {
@@ -74,7 +89,7 @@ void run_server(const std::string& db_name, const std::string& server_address) {
 
 int main(int argc, char* argv[]) {
     int opt;
-    std::string db_name = "/tmp/testdb";
+    std::string db_name = "./testdb";
     std::string server_address = "0.0.0.0:50051";
 
     while ((opt = getopt(argc, argv, "ha:d:")) != -1) {
