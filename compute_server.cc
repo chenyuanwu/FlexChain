@@ -263,6 +263,7 @@ int kv_put(struct ThreadContext &ctx, const string &key, const string &value) {
 void *background_handler(void *arg) {
     while (true) {
         /* block wait for incoming message */
+        log_info(stderr, "background handler: listening for background requests.");
         wait_completion(c_ib_info.comp_channel, c_ib_info.bg_cq, IBV_WC_RECV, 1, __LINE__);
 
         if (strncmp(c_ib_info.ib_bg_buf, EVICT_MSG, CTL_MSG_TYPE_SIZE) == 0) {
@@ -344,7 +345,8 @@ void *background_handler(void *arg) {
             memcpy(write_buf, INVAL_COMP_MSG, CTL_MSG_TYPE_SIZE);
             post_send(CTL_MSG_TYPE_SIZE, c_ib_info.mr_bg->lkey, (uintptr_t)c_ib_info.ib_bg_buf, 0,
                       c_ib_info.bg_qp, c_ib_info.ib_bg_buf, __func__, to_string(__LINE__));
-
+            post_recv(c_config_info.bg_msg_size, c_ib_info.mr_bg->lkey, (uintptr_t)c_ib_info.ib_bg_buf,
+                      c_ib_info.bg_qp, c_ib_info.ib_bg_buf, __func__, to_string(__LINE__));
         } else if (strncmp(c_ib_info.ib_bg_buf, GC_MSG, CTL_MSG_TYPE_SIZE) == 0) {
             log_info(stderr, "background handler[gc]: received gc request, begin invalidation.");
             /* GC: invalidate the GCed keys */
@@ -384,6 +386,8 @@ void *background_handler(void *arg) {
             bzero(write_buf, c_config_info.bg_msg_size);
             memcpy(write_buf, GC_COMP_MSG, CTL_MSG_TYPE_SIZE);
             post_send(CTL_MSG_TYPE_SIZE, c_ib_info.mr_bg->lkey, (uintptr_t)c_ib_info.ib_bg_buf, 0,
+                      c_ib_info.bg_qp, c_ib_info.ib_bg_buf, __func__, to_string(__LINE__));
+            post_recv(c_config_info.bg_msg_size, c_ib_info.mr_bg->lkey, (uintptr_t)c_ib_info.ib_bg_buf,
                       c_ib_info.bg_qp, c_ib_info.ib_bg_buf, __func__, to_string(__LINE__));
         }
     }
@@ -459,7 +463,7 @@ void run_server() {
 
     /* accept client transaction proposals */
     /* or implement microbenchmark logics */
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < 1000; i++) {
         struct Request req;
         req.type = Request::Type::PUT;
         req.key = "key_" + to_string(i);
@@ -470,17 +474,17 @@ void run_server() {
         sem_post(&rq.full);
     }
 
-    sleep(5);
+    sleep(2);
 
-    // for (int i = 0; i < 50; i++) {
-    //     struct Request req;
-    //     req.key = "key_" + to_string(i);
-    //     req.type = Request::Type::GET;
-    //     pthread_mutex_lock(&rq.mutex);
-    //     rq.rq_queue.push(req);
-    //     pthread_mutex_unlock(&rq.mutex);
-    //     sem_post(&rq.full);
-    // }
+    for (int i = 0; i < 300; i++) {
+        struct Request req;
+        req.key = "key_" + to_string(i);
+        req.type = Request::Type::GET;
+        pthread_mutex_lock(&rq.mutex);
+        rq.rq_queue.push(req);
+        pthread_mutex_unlock(&rq.mutex);
+        sem_post(&rq.full);
+    }
 
     void *status;
     for (int i = 0; i < num_threads; i++) {
