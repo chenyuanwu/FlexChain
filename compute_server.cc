@@ -163,6 +163,9 @@ string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &k
         log_info(stderr, "kv_get[thread_index = %d, key = %s]: read from sstables.", ctx.thread_index, key.c_str());
         string value;
         int ret = client.read_sstables(key, value);
+
+        unsigned long offset = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + key.length();
+        value = value.substr(offset);
         return value;
     }
 }
