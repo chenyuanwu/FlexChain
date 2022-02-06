@@ -20,6 +20,7 @@
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <atomic>
 
 #include "storage.grpc.pb.h"
 
@@ -28,37 +29,10 @@ using grpc::Channel;
 using grpc::ClientContext;
 using grpc::Status;
 
-struct Request {
-    enum Type {
-        GET,
-        PUT,
-    };
-    Type type;
-    string key;
-    string value;
-};
-
 struct ThreadContext {
     int thread_index;
     struct ibv_qp *m_qp;
     struct ibv_cq *m_cq;
-};
-
-class RequestQueue {
-   public:
-    queue<struct Request> rq_queue;
-    pthread_mutex_t mutex;
-    sem_t full;
-
-    RequestQueue() {
-        pthread_mutex_init(&mutex, NULL);
-        sem_init(&full, 0, 0);
-    }
-
-    ~RequestQueue() {
-        pthread_mutex_destroy(&mutex);
-        sem_destroy(&full);
-    }
 };
 
 class DataCache {

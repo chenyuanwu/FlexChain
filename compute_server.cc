@@ -7,6 +7,7 @@
 #include "log.h"
 #include "setup_ib.h"
 #include "utils.h"
+#include "benchmark.h"
 
 struct CConfigInfo c_config_info;
 struct ComputeIBInfo c_ib_info;
@@ -16,6 +17,9 @@ MetaDataCache metadatacache;
 shared_ptr<grpc::Channel> channel_ptr;
 pthread_mutex_t logger_lock;
 FILE *logger_fp;
+volatile int end_flag = 0;
+volatile int start_flag = 0;
+atomic<long> total_ops;
 
 /* read from the disaggregated key value store */
 string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &key) {
@@ -335,6 +339,8 @@ void *background_handler(void *arg) {
                 auto it_data = datacache.addr_hashtable.find(*it);
                 if (it_data != datacache.addr_hashtable.end()) {
                     auto it_lru = it_data->second;
+                    uint64_t l_addr = it_lru->l_addr;
+                    datacache.free_addrs.push(l_addr);
                     datacache.lru_list.erase(it_lru);
                     datacache.addr_hashtable.erase(it_data);
                 }
@@ -404,7 +410,8 @@ void *simulation_handler(void *arg) {
     /* set up grpc client */
     KVStableClient client(channel_ptr);
 
-    while (true) {
+    long local_ops = 0;
+    while (!end_flag) {
         sem_wait(&rq.full);
         pthread_mutex_lock(&rq.mutex);
         struct Request proposal;
@@ -418,21 +425,27 @@ void *simulation_handler(void *arg) {
             value = kv_get(ctx, client, proposal.key);
             log_info(logger_fp, "thread_index = #%d\trequest_type = GET\nget_key = %s\nget_value = %s\n",
                      ctx.thread_index, proposal.key.c_str(), value.c_str());
+            local_ops++;
         } else if (proposal.type == Request::Type::PUT) {
             int ret = kv_put(ctx, proposal.key, proposal.value);
             if (!ret) {
                 log_info(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\nput_value = %s\n",
                          ctx.thread_index, proposal.key.c_str(), proposal.value.c_str());
+                if (!proposal.is_prep) {
+                    local_ops++;
+                }
             } else {
                 log_info(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\noperation failed...\n",
                          ctx.thread_index, proposal.key.c_str());
             }
         }
     }
+    total_ops += local_ops;
 }
 
 void run_server() {
     /* init local caches and spawn the thread pool */
+    total_ops = 0;
     for (int offset = 0; offset < c_config_info.data_cache_size; offset += c_config_info.data_msg_size) {
         char *addr = c_ib_info.ib_data_buf + offset;
         datacache.free_addrs.push((uintptr_t)addr);
@@ -464,36 +477,18 @@ void run_server() {
         }
     }
 
-    /* accept client transaction proposals */
-    /* or implement microbenchmark logics */
-    for (int i = 0; i < 1000; i++) {
-        struct Request req;
-        req.type = Request::Type::PUT;
-        req.key = "key_" + to_string(i);
-        req.value = "value_" + to_string(i);
-        pthread_mutex_lock(&rq.mutex);
-        rq.rq_queue.push(req);
-        pthread_mutex_unlock(&rq.mutex);
-        sem_post(&rq.full);
-    }
+    /* microbenchmark logics */
+    uint64_t time = benchmark_throughput();
 
-    sleep(2);
-
-    for (int i = 0; i < 300; i++) {
-        struct Request req;
-        req.key = "key_" + to_string(i);
-        req.type = Request::Type::GET;
-        pthread_mutex_lock(&rq.mutex);
-        rq.rq_queue.push(req);
-        pthread_mutex_unlock(&rq.mutex);
-        sem_post(&rq.full);
-    }
-
+    /* output stats */
     void *status;
     for (int i = 0; i < num_threads; i++) {
         pthread_join(tid[i], &status);
     }
-    pthread_join(bg_tid, &status);
+
+    log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
+
+    pthread_join(bg_tid, &status); 
     free(ctxs);
 }
 
