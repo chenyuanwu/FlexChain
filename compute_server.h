@@ -11,16 +11,16 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <atomic>
+#include <fstream>
+#include <iostream>
 #include <list>
 #include <memory>
 #include <queue>
 #include <set>
-#include <unordered_map>
-#include <iostream>
-#include <fstream>
-#include <string>
 #include <sstream>
-#include <atomic>
+#include <string>
+#include <unordered_map>
 
 #include "storage.grpc.pb.h"
 
@@ -31,8 +31,8 @@ using grpc::Status;
 
 struct ThreadContext {
     int thread_index;
-    struct ibv_qp *m_qp;
-    struct ibv_cq *m_cq;
+    struct ibv_qp* m_qp;
+    struct ibv_cq* m_cq;
 };
 
 class DataCache {
@@ -85,6 +85,7 @@ class KVStableClient {
         : stub_(KVStable::NewStub(channel)) {}
 
     int read_sstables(const string& key, string& value);
+    int write_sstables(const string& key, const string& value);
 
    private:
     unique_ptr<KVStable::Stub> stub_;

@@ -3,11 +3,11 @@
 #include <assert.h>
 #include <signal.h>
 
+#include "benchmark.h"
 #include "config.h"
 #include "log.h"
 #include "setup_ib.h"
 #include "utils.h"
-#include "benchmark.h"
 
 struct CConfigInfo c_config_info;
 struct ComputeIBInfo c_ib_info;
@@ -35,7 +35,7 @@ string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &k
         auto it_new = metadatacache.lru_list.insert(metadatacache.lru_list.begin(), h);  // update lru list and pointer in hashtable
         it->second = it_new;
         log_debug(stderr, "kv_get[thread_index = %d, key = %s]: remote address 0x%lx is found in local metadata cache.",
-                 ctx.thread_index, key.c_str(), ptr_next);
+                  ctx.thread_index, key.c_str(), ptr_next);
     }
     pthread_mutex_unlock(&metadatacache.hashtable_lock);
 
@@ -63,7 +63,7 @@ string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &k
         if (strncmp(read_buf, BACKOFF_MSG, CTL_MSG_TYPE_SIZE) == 0) {
             /* in evection now */
             log_debug(stderr, "kv_get[thread_index = %d, key = %s]: remote buffer of this key is in eviction, retry.",
-                     ctx.thread_index, key.c_str());
+                      ctx.thread_index, key.c_str());
             usleep(2000);
             return kv_get(ctx, client, key);
         } else if (strncmp(read_buf, FOUND_MSG, CTL_MSG_TYPE_SIZE) == 0) {
@@ -79,7 +79,7 @@ string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &k
             pthread_mutex_unlock(&metadatacache.hashtable_lock);
 
             log_debug(stderr, "kv_get[thread_index = %d, key = %s]: remote address 0x%lx is found by contacting the control plane.",
-                     ctx.thread_index, key.c_str(), ptr_next);
+                      ctx.thread_index, key.c_str(), ptr_next);
         }
     }
 
@@ -100,7 +100,7 @@ string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &k
         if (local_ptr != 0) {
             /* the buffer is cached locally */
             log_debug(stderr, "kv_get[thread_index = %d, key = %s]: found in local data cache (raddr = 0x%lx, laddr = 0x%lx).",
-                     ctx.thread_index, key.c_str(), ptr_next, local_ptr);
+                      ctx.thread_index, key.c_str(), ptr_next, local_ptr);
             unsigned long offset = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + key.length();
             char *val_ptr = (char *)local_ptr;
             val_ptr += offset;
@@ -132,7 +132,7 @@ string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &k
             memcpy(&ptr, (char *)local_ptr, sizeof(uint64_t));
             assert(ptr == 0);
             log_debug(stderr, "kv_get[thread_index = %d, key = %s]: finished RDMA read from remote memory pool (raddr = 0x%lx).",
-                     ctx.thread_index, key.c_str(), ptr_next);
+                      ctx.thread_index, key.c_str(), ptr_next);
 
             uint8_t invalid;
             char *val_ptr = (char *)local_ptr;
@@ -142,7 +142,7 @@ string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &k
             if (invalid) {
                 /* in eviction now */
                 log_debug(stderr, "kv_get[thread_index = %d, key = %s]: invalid buffer (raddr = 0x%lx) due to eviction, discard and retry.",
-                         ctx.thread_index, key.c_str(), ptr_next);
+                          ctx.thread_index, key.c_str(), ptr_next);
                 datacache.free_addrs.push(local_ptr);
                 usleep(2000);
                 return kv_get(ctx, client, key);
@@ -222,7 +222,7 @@ int kv_put(struct ThreadContext &ctx, const string &key, const string &value) {
     uint32_t index;
     memcpy(&index, read_ptr, sizeof(uint32_t));
     log_debug(stderr, "kv_put[thread_index = %d, key = %s]: remote addr 0x%lx is allocated.",
-             ctx.thread_index, key.c_str(), remote_ptr);
+              ctx.thread_index, key.c_str(), remote_ptr);
 
     post_write_with_imm(c_config_info.data_msg_size, c_ib_info.mr_data->lkey, local_ptr, index, ctx.m_qp,
                         (char *)local_ptr, remote_ptr, c_ib_info.remote_mr_data_rkey, to_string(ctx.thread_index), to_string(__LINE__));
@@ -237,7 +237,7 @@ int kv_put(struct ThreadContext &ctx, const string &key, const string &value) {
     }
 
     log_debug(stderr, "kv_put[thread_index = %d, key = %s]: finished RDMA write to remote addr 0x%lx, committed.",
-             ctx.thread_index, key.c_str(), remote_ptr);
+              ctx.thread_index, key.c_str(), remote_ptr);
 
     /* update local caches */
     struct DataCache::Frame f = {
@@ -422,21 +422,23 @@ void *simulation_handler(void *arg) {
         /* the smart contract for microbenchmarks */
         if (proposal.type == Request::Type::GET) {
             string value;
-            value = kv_get(ctx, client, proposal.key);
-            log_debug(logger_fp, "thread_index = #%d\trequest_type = GET\nget_key = %s\nget_value = %s\n",
-                     ctx.thread_index, proposal.key.c_str(), value.c_str());
+            // value = kv_get(ctx, client, proposal.key);
+            client.read_sstables(proposal.key, value);
+            log_debug(logger_fp, "thread_index = #%d\trequest_type = GET\nget_key = %s\nget_value = %s\nget_size = %d\n",
+                      ctx.thread_index, proposal.key.c_str(), value.c_str(), value.size());
             local_ops++;
         } else if (proposal.type == Request::Type::PUT) {
-            int ret = kv_put(ctx, proposal.key, proposal.value);
+            // int ret = kv_put(ctx, proposal.key, proposal.value);
+            int ret = client.write_sstables(proposal.key, proposal.value);
             if (!ret) {
                 log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\nput_value = %s\n",
-                         ctx.thread_index, proposal.key.c_str(), proposal.value.c_str());
+                          ctx.thread_index, proposal.key.c_str(), proposal.value.c_str());
                 if (!proposal.is_prep) {
                     local_ops++;
                 }
             } else {
                 log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\noperation failed...\n",
-                         ctx.thread_index, proposal.key.c_str());
+                          ctx.thread_index, proposal.key.c_str());
             }
         }
     }
@@ -489,11 +491,11 @@ void run_server() {
 
     log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
 
-    pthread_join(bg_tid, &status); 
+    pthread_join(bg_tid, &status);
     free(ctxs);
 }
 
-/* return 1 on success, 0 on not found, -1 on error */
+/* return 0 on success, 1 on not found, -1 on error */
 int KVStableClient::read_sstables(const string &key, string &value) {
     ClientContext context;
     GetRequest get_req;
@@ -509,13 +511,35 @@ int KVStableClient::read_sstables(const string &key, string &value) {
             value = get_rsp.value();
         } else if (get_rsp.status() == GetResponse_Status_NOTFOUND) {
             log_err("Failed to find key (%s) on SSTables.", key.c_str());
-            return 0;
+            return 1;
         } else if (get_rsp.status() == GetResponse_Status_ERROR) {
             log_err("Error in reading sstables.");
             return -1;
         }
     }
-    return 1;
+    return 0;
+}
+
+int KVStableClient::write_sstables(const string &key, const string &value) {
+    ClientContext context;
+    EvictedBuffers ev;
+    EvictionResponse rsp;
+
+    char *buf = (char *)malloc(c_config_info.data_msg_size);
+    bzero(buf, c_config_info.data_msg_size);
+    memcpy(buf, value.c_str(), value.size());
+    string actual_value(buf, c_config_info.data_msg_size);
+
+    (*ev.mutable_eviction())[key] = actual_value;
+
+    Status status = stub_->write_sstables(&context, ev, &rsp);
+    if (!status.ok()) {
+        log_err("gRPC failed with error message: %s.", status.error_message().c_str());
+        free(buf);
+        return -1;
+    }
+    free(buf);
+    return 0;
 }
 
 int main(int argc, char *argv[]) {
