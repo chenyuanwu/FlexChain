@@ -34,7 +34,7 @@ class KVStableImpl final : public KVStable::Service {
             unsigned long offset = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + it->first.length();
             actual_value = it->second.substr(offset);
 
-            log_info(stderr, "write[key = %s]: value = %s is add to the batch.", it->first.c_str(), actual_value.c_str());
+            log_debug(stderr, "write[key = %s]: value = %s is add to the batch.", it->first.c_str(), actual_value.c_str());
         }
         leveldb::Status s = db->Write(leveldb::WriteOptions(), &batch);
         if (!s.ok()) {
@@ -55,11 +55,11 @@ class KVStableImpl final : public KVStable::Service {
             unsigned long offset = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + request->key().length();
             actual_value = value.substr(offset);
 
-            log_info(stderr, "read[key = %s]: found value = %s.", request->key().c_str(), actual_value.c_str());
+            log_debug(stderr, "read[key = %s]: found value = %s.", request->key().c_str(), actual_value.c_str());
         }
         if (s.IsNotFound()) {
             response->set_status(GetResponse_Status_NOTFOUND);
-            log_info(stderr, "read[key = %s]: key not found in leveldb.", request->key().c_str());
+            log_debug(stderr, "read[key = %s]: key not found in leveldb.", request->key().c_str());
         }
         if ((!s.ok()) && (!s.IsNotFound())) {
             response->set_status(GetResponse_Status_ERROR);
