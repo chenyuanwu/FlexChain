@@ -61,11 +61,10 @@ void *eviction_manager(void *arg) {
         }
         pthread_mutex_unlock(&space_allocator.lock);
 
-        log_debug(stderr, "eviction manager: buffer eviction procedure is initiated.");
-
         /* run the buffer eviction procedure */
         pthread_mutex_lock(&m_ib_info.bg_buf_lock);
         /* notify all CNs to collect LRU keys */
+        log_debug(stderr, "eviction manager: buffer eviction procedure is initiated. notifying CNs...");
         for (int i = 0; i < m_config_info.num_compute_servers; i++) {
             char *bg_buf = m_ib_info.ib_bg_buf + i * m_config_info.bg_msg_size;
             bzero(bg_buf, m_config_info.bg_msg_size);
@@ -77,6 +76,7 @@ void *eviction_manager(void *arg) {
         }
 
         wait_completion(m_ib_info.comp_channel, m_ib_info.bg_cq, IBV_WC_RECV, m_config_info.num_compute_servers, __LINE__);
+        log_debug(stderr, "eviction manager: received lru keys from CNs. locking the corresponding entries in control plane...");
 
         set<string> lru_keys;
         for (int i = 0; i < m_config_info.num_compute_servers; i++) {
