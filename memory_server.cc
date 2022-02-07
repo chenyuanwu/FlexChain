@@ -46,7 +46,7 @@ void *space_manager(void *arg) {
         int qp_idx = m_ib_info.qp_num_to_idx[wc.qp_num];
         post_send(m_config_info.ctrl_msg_size, m_ib_info.mr_control->lkey, wc.wr_id, 0,
                   m_ib_info.qp[qp_idx], msg_ptr, __func__, to_string(__LINE__));
-        log_info(stderr, "space manager: buffer addr 0x%lx is allocated to compute nodes.", free_addr);
+        log_debug(stderr, "space manager: buffer addr 0x%lx is allocated to compute nodes.", free_addr);
     }
 }
 
@@ -61,7 +61,7 @@ void *eviction_manager(void *arg) {
         }
         pthread_mutex_unlock(&space_allocator.lock);
 
-        log_info(stderr, "eviction manager: buffer eviction procedure is initiated.");
+        log_debug(stderr, "eviction manager: buffer eviction procedure is initiated.");
 
         /* run the buffer eviction procedure */
         pthread_mutex_lock(&m_ib_info.bg_buf_lock);
@@ -101,9 +101,9 @@ void *eviction_manager(void *arg) {
         }
 
         /* write the latest version in chain to SSTables */
-        log_info(stderr, "eviction manager: begin writing to SSTables on remote storage.");
+        log_debug(stderr, "eviction manager: begin writing to SSTables on remote storage.");
         client.write_sstables(lru_keys);
-        log_info(stderr, "eviction manager: finished writing to SSTables on remote storage.");
+        log_debug(stderr, "eviction manager: finished writing to SSTables on remote storage.");
 
         /* delete the evicted keys in control plane */
         for (auto it = lru_keys.begin(); it != lru_keys.end(); it++) {
@@ -111,7 +111,7 @@ void *eviction_manager(void *arg) {
         }
 
         /* invalidate cached cursors and data buffers */
-        log_info(stderr, "eviction manager: begin invalidation.");
+        log_debug(stderr, "eviction manager: begin invalidation.");
         char *write_buf = m_ib_info.ib_bg_buf;
         memcpy(write_buf, INVAL_MSG, CTL_MSG_TYPE_SIZE);
         write_buf += CTL_MSG_TYPE_SIZE;
@@ -154,7 +154,7 @@ void *eviction_manager(void *arg) {
         }
         pthread_mutex_unlock(&m_ib_info.bg_buf_lock);
 
-        log_info(stderr, "eviction manager: successfully received invalidation acks.");
+        log_debug(stderr, "eviction manager: successfully received invalidation acks.");
 
         for (auto it = lru_keys.begin(); it != lru_keys.end(); it++) {
             pthread_rwlock_unlock(&key_to_addr[*it].rwlock);
@@ -164,7 +164,7 @@ void *eviction_manager(void *arg) {
             pthread_mutex_unlock(&space_allocator.lock);
             sem_post(&space_allocator.full);
         }
-        log_info(stderr, "eviction manager: buffer eviction procedure is completed.");
+        log_debug(stderr, "eviction manager: buffer eviction procedure is completed.");
     }
 }
 
@@ -185,7 +185,7 @@ void *gc_manager(void *arg) {
 
         pthread_mutex_unlock(&gc.lock);
 
-        log_info(stderr, "gc manager: garbage collection procedure is initiated.");
+        log_debug(stderr, "gc manager: garbage collection procedure is initiated.");
 
         /* invalidate keys that corresponds to the recycled buffer */
         pthread_mutex_lock(&m_ib_info.bg_buf_lock);
@@ -227,7 +227,7 @@ void *gc_manager(void *arg) {
         }
         pthread_mutex_unlock(&m_ib_info.bg_buf_lock);
 
-        log_info(stderr, "gc manager: successfully received invalidation acks.");
+        log_debug(stderr, "gc manager: successfully received invalidation acks.");
 
         for (auto it = gc_addrs.begin(); it != gc_addrs.end(); it++) {
             pthread_mutex_lock(&space_allocator.lock);
@@ -235,7 +235,7 @@ void *gc_manager(void *arg) {
             pthread_mutex_unlock(&space_allocator.lock);
             sem_post(&space_allocator.full);
         }
-        log_info(stderr, "gc manager: garbage collection procedure is completed.");
+        log_debug(stderr, "gc manager: garbage collection procedure is completed.");
     }
 }
 

@@ -41,13 +41,15 @@ int test_get_put_mix() {
 /* throughput tests */
 void *client_thread(void *arg) {
     int key_num = *(int *)arg;
-    int trans_per_interval = 200;
-    int interval = 1000;
+    int trans_per_interval = 1000;
+    int interval = 30000;
 
     default_random_engine generator;
     uniform_int_distribution<int> distribution(0, key_num - 1);
 
     while (!end_flag) {
+        usleep(interval);
+
         for (int i = 0; i < trans_per_interval; i++) {
             int number = distribution(generator);
             struct Request req;
@@ -59,9 +61,8 @@ void *client_thread(void *arg) {
             pthread_mutex_unlock(&rq.mutex);
             sem_post(&rq.full);
         }
-
-        usleep(5000);
     }
+    return NULL;
 }
 
 int64_t benchmark_throughput() {
@@ -95,5 +96,6 @@ int64_t benchmark_throughput() {
 
     void *status;
     pthread_join(client_tid, &status);
+    log_info(stderr, "*******************************benchmarking completed*******************************");
     return (after - before).count();
 }

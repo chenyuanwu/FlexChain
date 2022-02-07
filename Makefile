@@ -14,7 +14,7 @@ PROTOS_PATH = .
 
 all: compute_server memory_server storage_server
 
-compute_server: compute_server.cc setup_ib.o utils.o storage.pb.o storage.grpc.pb.o
+compute_server: compute_server.cc benchmark.o setup_ib.o utils.o storage.pb.o storage.grpc.pb.o
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
 
 memory_server: memory_server.cc setup_ib.o utils.o storage.pb.o storage.grpc.pb.o
