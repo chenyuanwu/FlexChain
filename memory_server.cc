@@ -81,7 +81,12 @@ void *eviction_manager(void *arg) {
         set<string> lru_keys;
         for (int i = 0; i < m_config_info.num_compute_servers; i++) {
             char *read_buf = m_ib_info.ib_bg_buf + i * m_config_info.bg_msg_size;
-            for (int num = 0; num < LRU_KEY_NUM; num++) {
+
+            uint32_t num;
+            memcpy(&num, read_buf, sizeof(uint32_t));
+            read_buf += sizeof(uint32_t);
+
+            for (int j = 0; j < num; j++) {
                 uint32_t key_len;
                 memcpy(&key_len, read_buf, sizeof(uint32_t));
                 read_buf += sizeof(uint32_t);
@@ -316,9 +321,9 @@ void *bookkeeping_agent(void *arg) {
                 char *old_addr = (char *)it->second.ptr_next;
                 uint64_t new_addr = (uintptr_t)(m_ib_info.ib_data_buf + offset);
                 char *flag_addr = old_addr + sizeof(uint64_t) + sizeof(uint64_t);
-                *flag_addr = 1;                                 // set the invalid bit
+                (*flag_addr) = 1;                                 // set the invalid bit
                 memcpy(old_addr, &new_addr, sizeof(uint64_t));  // link the latest buffer to the chain
-                *flag_addr = 0;
+                (*flag_addr) = 0;
                 it->second.ptr_next = new_addr;
 
                 /* retire old buffers in the background */
