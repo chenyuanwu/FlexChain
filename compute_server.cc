@@ -128,13 +128,10 @@ string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &k
                       (char *)local_ptr, ptr_next, c_ib_info.remote_mr_data_rkey, to_string(ctx.thread_index), to_string(__LINE__));
             // chain walk is not needed for M-C topology
             int ret = poll_completion(ctx.thread_index, ctx.m_cq, IBV_WC_RDMA_READ, __LINE__);
-            uint64_t ptr;
-            memcpy(&ptr, (char *)local_ptr, sizeof(uint64_t));
-            assert(ptr == 0);
             log_debug(stderr, "kv_get[thread_index = %d, key = %s]: finished RDMA read from remote memory pool (raddr = 0x%lx).",
                       ctx.thread_index, key.c_str(), ptr_next);
 
-            uint8_t invalid;
+            uint8_t invalid = 0;
             char *val_ptr = (char *)local_ptr;
             val_ptr += sizeof(uint64_t) * 2;
             memcpy(&invalid, val_ptr, sizeof(uint8_t));
@@ -144,9 +141,13 @@ string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &k
                 log_debug(stderr, "kv_get[thread_index = %d, key = %s]: invalid buffer (raddr = 0x%lx) due to eviction, discard and retry.",
                           ctx.thread_index, key.c_str(), ptr_next);
                 datacache.free_addrs.push(local_ptr);
-                usleep(2000);
+                usleep(500000);
                 return kv_get(ctx, client, key);
             } else {
+                // uint64_t ptr;
+                // memcpy(&ptr, (char *)local_ptr, sizeof(uint64_t));
+                // assert(ptr == 0); // not true under contention
+
                 /* update local cache */
                 struct DataCache::Frame f = {
                     .l_addr = local_ptr,
@@ -278,7 +279,13 @@ void *background_handler(void *arg) {
             /* send my local LRU keys to the memory server */
             char *write_buf = c_ib_info.ib_bg_buf;
             pthread_mutex_lock(&metadatacache.hashtable_lock);
-            for (int i = 0; i < LRU_KEY_NUM; i++) {
+
+            uint32_t num;
+            num = (metadatacache.lru_list.size() >= LRU_KEY_NUM) ? LRU_KEY_NUM  : metadatacache.lru_list.size();
+            memcpy(write_buf, &num, sizeof(uint32_t));
+            write_buf += sizeof(uint32_t);
+
+            for (int i = 0; i < num; i++) {
                 string key = metadatacache.lru_list.back().key;
                 metadatacache.lru_list.pop_back();
                 metadatacache.key_hashtable.erase(key);
@@ -306,7 +313,6 @@ void *background_handler(void *arg) {
                 log_err("Failed to receive invalidation request.");
             }
             read_buf += CTL_MSG_TYPE_SIZE;
-            uint32_t num;
             memcpy(&num, read_buf, sizeof(uint32_t));
             read_buf += sizeof(uint32_t);
             for (int i = 0; i < num; i++) {
@@ -422,14 +428,14 @@ void *simulation_handler(void *arg) {
         /* the smart contract for microbenchmarks */
         if (proposal.type == Request::Type::GET) {
             string value;
-            // value = kv_get(ctx, client, proposal.key);
-            client.read_sstables(proposal.key, value);
-            log_debug(logger_fp, "thread_index = #%d\trequest_type = GET\nget_key = %s\nget_value = %s\nget_size = %d\n",
+            value = kv_get(ctx, client, proposal.key);
+            // client.read_sstables(proposal.key, value);
+            log_debug(logger_fp, "thread_index = #%d\trequest_type = GET\nget_key = %s\nget_value = %s\nget_size = %ld\n",
                       ctx.thread_index, proposal.key.c_str(), value.c_str(), value.size());
             local_ops++;
         } else if (proposal.type == Request::Type::PUT) {
-            // int ret = kv_put(ctx, proposal.key, proposal.value);
-            int ret = client.write_sstables(proposal.key, proposal.value);
+            int ret = kv_put(ctx, proposal.key, proposal.value);
+            // int ret = client.write_sstables(proposal.key, proposal.value);
             if (!ret) {
                 log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\nput_value = %s\n",
                           ctx.thread_index, proposal.key.c_str(), proposal.value.c_str());
@@ -482,6 +488,7 @@ void run_server() {
 
     /* microbenchmark logics */
     uint64_t time = benchmark_throughput();
+    // test_get_put_mix();
 
     /* output stats */
     void *status;
