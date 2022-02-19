@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+service Consensus{
+    rpc append_entries (AppendRequest) returns (AppendResponse) {}
+}
+
+message AppendRequest {
+    uint64 leader_commit = 1;
+    repeated bytes log_entries = 2;
+}
+
+message AppendResponse {
+
+}
+
