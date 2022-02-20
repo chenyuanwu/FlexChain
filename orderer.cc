@@ -4,7 +4,7 @@
 
 atomic<unsigned long> commit_index(0);
 atomic<unsigned long> last_log_index(0);
-vector<unsigned long> next_index;
+deque<atomic<unsigned long>> next_index;
 deque<atomic<unsigned long>> match_index;
 vector<string> grpc_endpoints;
 TransactionQueue tq;
@@ -12,15 +12,18 @@ Role role;
 pthread_mutex_t logger_lock;
 
 void *log_replication_thread(void *arg) {
-    int server_index = *(int *)arg;
-    shared_ptr<grpc::Channel> channel = grpc::CreateChannel(grpc_endpoints[server_index], grpc::InsecureChannelCredentials());
+    struct ThreadContext ctx = *(struct ThreadContext *)arg;
+    log_info(stderr, "[server_index = %d]log replication thread is running for follower %s.", ctx.server_index, ctx.grpc_endpoint.c_str());
+    shared_ptr<grpc::Channel> channel = grpc::CreateChannel(ctx.grpc_endpoint, grpc::InsecureChannelCredentials());
     unique_ptr<Consensus::Stub> stub(Consensus::NewStub(channel));
 
     ifstream log("./consensus/raft.log", ios::in);
     assert(log.is_open());
 
     while (true) {
-        if (last_log_index >= next_index[server_index]) {
+        if (last_log_index >= next_index[ctx.server_index]) {
+            // log_debug(stderr, "[server_index = %d]send append_entries RPC. last_log_index = %ld. next_index = %ld.",
+            //           ctx.server_index, last_log_index.load(), next_index[ctx.server_index].load());
             /* send AppendEntries RPC */
             ClientContext context;
             AppendRequest app_req;
@@ -28,23 +31,24 @@ void *log_replication_thread(void *arg) {
 
             app_req.set_leader_commit(commit_index);
             int index = 0;
-            for (; index < LOG_ENTRY_BATCH && next_index[server_index] + index <= last_log_index; index++) {
+            for (; index < LOG_ENTRY_BATCH && next_index[ctx.server_index] + index <= last_log_index; index++) {
                 uint32_t size;
                 log.read((char *)&size, sizeof(uint32_t));
                 char *entry_ptr = (char *)malloc(size);
                 log.read(entry_ptr, size);
-                app_req.set_log_entries(index, entry_ptr, size);
+                app_req.add_log_entries(entry_ptr, size);
                 free(entry_ptr);
             }
 
             Status status = stub->append_entries(&context, app_req, &app_rsp);
             if (!status.ok()) {
-                log_err("gRPC failed with error message: %s.", status.error_message().c_str());
+                log_err("[server_index = %d]gRPC failed with error message: %s.", ctx.server_index, status.error_message().c_str());
                 continue;
             }
 
-            next_index[server_index] += index;
-            match_index[server_index] += index - 1;
+            next_index[ctx.server_index] += index;
+            match_index[ctx.server_index] = next_index[ctx.server_index] - 1;
+            // log_debug(stderr, "[server_index = %d]match_index is %ld.", ctx.server_index, match_index[ctx.server_index].load());
         }
     }
 }
@@ -72,6 +76,7 @@ void *block_formation_thread(void *arg) {
             }
             if (count >= majority) {
                 commit_index = N;
+                // log_debug(stderr, "commit_index is updated to %ld.", commit_index.load());
             }
         }
 
@@ -106,10 +111,13 @@ void run_leader() {
 
     pthread_t *repl_tids;
     repl_tids = (pthread_t *)malloc(sizeof(pthread_t) * grpc_endpoints.size());
+    struct ThreadContext *ctxs = (struct ThreadContext *)calloc(grpc_endpoints.size(), sizeof(struct ThreadContext));
     for (int i = 0; i < grpc_endpoints.size(); i++) {
         next_index.emplace_back(1);
         match_index.emplace_back(0);
-        pthread_create(&repl_tids[i], NULL, log_replication_thread, &i);
+        ctxs[i].grpc_endpoint = grpc_endpoints[i];
+        ctxs[i].server_index = i;
+        pthread_create(&repl_tids[i], NULL, log_replication_thread, &ctxs[i]);
     }
     pthread_t block_form_tid;
     pthread_create(&block_form_tid, NULL, block_formation_thread, NULL);
@@ -125,6 +133,17 @@ void run_leader() {
         }
         log.flush();
         last_log_index += i;
+        pthread_mutex_unlock(&tq.mutex);
+    }
+}
+
+void *run_client(void *arg) {
+    for (int i = 0; i < 200; i++) {
+        char value[1024] = {0};
+        string str = "value" + to_string(i);
+        strcpy(value, str.c_str());
+        pthread_mutex_lock(&tq.mutex);
+        tq.trans_queue.emplace(value, 1024);
         pthread_mutex_unlock(&tq.mutex);
     }
 }
@@ -152,6 +171,8 @@ class ConsensusImpl final : public Consensus::Service {
                 commit_index = leader_commit;
             }
         }
+
+        log_debug(stderr, "AppendEntriesRPC finished: last_log_index = %ld, commit_index = %ld.", last_log_index.load(), commit_index.load());
 
         return Status::OK;
     }
@@ -219,6 +240,10 @@ int main(int argc, char *argv[]) {
         for (string line; getline(fs, line);) {
             grpc_endpoints.push_back(line);
         }
+
+        pthread_t client_id;
+        pthread_create(&client_id, NULL, run_client, NULL);
+
         run_leader();
     } else if (role == FOLLOWER) {
         assert(!server_addr.empty());

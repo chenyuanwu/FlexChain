@@ -38,6 +38,12 @@ enum Role {
     CANDIDATE,
 };
 
+struct ThreadContext {
+    string grpc_endpoint;
+    int server_index;
+    int majority;
+};
+
 class TransactionQueue {
    public:
     queue<string> trans_queue;
