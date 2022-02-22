@@ -5,6 +5,7 @@
 
 #include "benchmark.h"
 #include "config.h"
+#include "leveldb/db.h"
 #include "log.h"
 #include "setup_ib.h"
 #include "utils.h"
@@ -20,6 +21,9 @@ FILE *logger_fp;
 volatile int end_flag = 0;
 volatile int start_flag = 0;
 atomic<long> total_ops;
+
+leveldb::DB *db;
+leveldb::Options options;
 
 /* read from the disaggregated key value store */
 string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &key) {
@@ -416,6 +420,7 @@ void *simulation_handler(void *arg) {
     /* set up grpc client */
     KVStableClient client(channel_ptr);
 
+    char *buf = (char *)malloc(1024 * 10);
     long local_ops = 0;
     while (!end_flag) {
         sem_wait(&rq.full);
@@ -428,14 +433,24 @@ void *simulation_handler(void *arg) {
         /* the smart contract for microbenchmarks */
         if (proposal.type == Request::Type::GET) {
             string value;
-            value = kv_get(ctx, client, proposal.key);
+            // value = kv_get(ctx, client, proposal.key);
             // client.read_sstables(proposal.key, value);
+            leveldb::Status s = db->Get(leveldb::ReadOptions(), proposal.key, &value);
             log_debug(logger_fp, "thread_index = #%d\trequest_type = GET\nget_key = %s\nget_value = %s\nget_size = %ld\n",
                       ctx.thread_index, proposal.key.c_str(), value.c_str(), value.size());
             local_ops++;
         } else if (proposal.type == Request::Type::PUT) {
-            int ret = kv_put(ctx, proposal.key, proposal.value);
+            // int ret = kv_put(ctx, proposal.key, proposal.value);
             // int ret = client.write_sstables(proposal.key, proposal.value);
+            bzero(buf, 1024 * 10);
+            strcpy(buf, proposal.value.c_str());
+            string value(buf, 1024 * 10);
+
+            leveldb::Status s = db->Put(leveldb::WriteOptions(), proposal.key, value);
+            int ret = 0;
+            if (!s.ok()) {
+                ret = 1;
+            }
             if (!ret) {
                 log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\nput_value = %s\n",
                           ctx.thread_index, proposal.key.c_str(), proposal.value.c_str());
@@ -449,10 +464,19 @@ void *simulation_handler(void *arg) {
         }
     }
     total_ops += local_ops;
+    free(buf);
     return NULL;
 }
 
 void run_server() {
+    std::filesystem::remove_all("./testdb");
+
+    options.create_if_missing = true;
+    options.error_if_exists = true;
+    options.write_buffer_size = 500 * 1024 * 1024;
+    leveldb::Status s = leveldb::DB::Open(options, "./testdb", &db);
+    assert(s.ok());
+
     /* init local caches and spawn the thread pool */
     total_ops = 0;
     for (int offset = 0; offset < c_config_info.data_cache_size; offset += c_config_info.data_msg_size) {

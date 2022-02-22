@@ -94,8 +94,8 @@ int test_get_put_mix() {
 /* throughput tests */
 void *client_thread(void *arg) {
     int key_num = *(int *)arg;
-    int trans_per_interval = 2000;
-    int interval = 50000;
+    int trans_per_interval = 3000;
+    int interval = 20000;
 
     default_random_engine generator;
     uniform_int_distribution<int> distribution(0, key_num - 1);
@@ -129,7 +129,7 @@ void *client_thread(void *arg) {
 }
 
 int64_t benchmark_throughput() {
-    int key_num = 1000;
+    int key_num = 50000;
     for (int i = 0; i < key_num; i++) {
         struct Request req;
         req.type = Request::Type::PUT;
