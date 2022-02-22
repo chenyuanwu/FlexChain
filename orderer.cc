@@ -10,6 +10,9 @@ vector<string> grpc_endpoints;
 TransactionQueue tq;
 Role role;
 pthread_mutex_t logger_lock;
+atomic<bool> ready_flag = false;
+atomic<bool> end_flag = false;
+atomic<long> total_ops = 0;
 
 void *log_replication_thread(void *arg) {
     struct ThreadContext ctx = *(struct ThreadContext *)arg;
@@ -64,8 +67,9 @@ void *block_formation_thread(void *arg) {
     int trans_index = 0;
     size_t max_block_size = 100 * 1024;
     size_t curr_size = 0;
+    int local_ops = 0;
 
-    while (true) {
+    while (!end_flag) {
         if (role == LEADER) {
             int N = commit_index + 1;
             int count = 0;
@@ -90,6 +94,7 @@ void *block_formation_thread(void *arg) {
             curr_size += size;
 
             log_debug(stderr, "[block_id = %d, trans_id = %d]: log_entry = %s", block_index, trans_index, entry_ptr);
+            local_ops++;
 
             trans_index++;
 
@@ -101,6 +106,7 @@ void *block_formation_thread(void *arg) {
             }
         }
     }
+    total_ops = local_ops;
 }
 
 void run_leader() {
@@ -118,9 +124,13 @@ void run_leader() {
         ctxs[i].grpc_endpoint = grpc_endpoints[i];
         ctxs[i].server_index = i;
         pthread_create(&repl_tids[i], NULL, log_replication_thread, &ctxs[i]);
+        pthread_detach(repl_tids[i]);
     }
     pthread_t block_form_tid;
     pthread_create(&block_form_tid, NULL, block_formation_thread, NULL);
+    pthread_detach(block_form_tid);
+
+    ready_flag = true;
 
     while (true) {
         pthread_mutex_lock(&tq.mutex);
@@ -137,15 +147,50 @@ void run_leader() {
     }
 }
 
-void *run_client(void *arg) {
-    for (int i = 0; i < 200; i++) {
+void *client_thread(void *arg) {
+    int trans_per_interval = 3000;
+    int interval = 20000;
+
+    default_random_engine generator;
+    uniform_int_distribution<int> distribution(0, 200);
+
+    while (!ready_flag)
+        ;
+
+    while (!end_flag) {
+        int number = distribution(generator);
         char value[1024] = {0};
-        string str = "value" + to_string(i);
+        string str = "value" + to_string(number);
         strcpy(value, str.c_str());
         pthread_mutex_lock(&tq.mutex);
         tq.trans_queue.emplace(value, 1024);
         pthread_mutex_unlock(&tq.mutex);
     }
+}
+
+void *run_client(void *arg) {
+    pthread_t client_tid;
+    pthread_create(&client_tid, NULL, client_thread, NULL);
+
+    while (!ready_flag)
+        ;
+
+    log_info(stderr, "*******************************benchmarking started*******************************");
+    chrono::milliseconds before, after;
+    before = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch());
+    sleep(10);
+    end_flag = 1;
+    after = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch());
+
+    void *status;
+    pthread_join(client_tid, &status);
+
+    while (total_ops == 0)
+        ;
+
+    log_info(stderr, "*******************************benchmarking completed*******************************");
+    uint64_t time = (after - before).count();
+    log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
 }
 
 class ConsensusImpl final : public Consensus::Service {
