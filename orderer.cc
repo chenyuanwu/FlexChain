@@ -62,19 +62,24 @@ void *block_formation_thread(void *arg) {
     string configfile = *(string *)(arg);
     string validator_grpc_endpoint;
     fstream fs;
-    fs.open(configfile, fstream::in);
-    for (string line; getline(fs, line);) {
-        vector<string> tmp = split(line, "=");
-        assert(tmp.size() == 2);
-        if (tmp[0] == "validator") {
-            validator_grpc_endpoint = tmp[1];
+    shared_ptr<grpc::Channel> channel;
+    unique_ptr<ComputeComm::Stub> stub;
+    
+    if (role == LEADER) {
+        fs.open(configfile, fstream::in);
+        for (string line; getline(fs, line);) {
+            vector<string> tmp = split(line, "=");
+            assert(tmp.size() == 2);
+            if (tmp[0] == "validator") {
+                validator_grpc_endpoint = tmp[1];
+            }
         }
+        channel = grpc::CreateChannel(validator_grpc_endpoint, grpc::InsecureChannelCredentials());
+        while (channel->GetState(true) != GRPC_CHANNEL_READY)
+            ;
+        log_info(stderr, "block formation thread: channel for validator is in ready state.");
+        stub = ComputeComm::NewStub(channel);
     }
-    shared_ptr<grpc::Channel> channel = grpc::CreateChannel(validator_grpc_endpoint, grpc::InsecureChannelCredentials());
-    while (channel->GetState(true) != GRPC_CHANNEL_READY)
-        ;
-    log_info(stderr, "block formation thread: channel for validator is in ready state.");
-    unique_ptr<ComputeComm::Stub> stub(ComputeComm::NewStub(channel));
 
     log_info(stderr, "Block formation thread is running.");
     ifstream log("./consensus/raft.log", ios::in);
@@ -130,7 +135,9 @@ void *block_formation_thread(void *arg) {
             if (curr_size >= max_block_size) {
                 /* cut the block and send it to all validators */
                 block.set_block_id(block_index);
-                Status status = stub->send_to_validator(&context, block, &rsp);  // TODO: use client stream + async
+                if (role == LEADER) {
+                    Status status = stub->send_to_validator(&context, block, &rsp);  // TODO: use client stream + async
+                }
 
                 curr_size = 0;
                 block_index++;
@@ -208,12 +215,12 @@ void run_leader(const std::string &server_address, std::string configfile) {
     pthread_detach(block_form_tid);
 
     /* start the grpc server for ConsensusComm */
-    ConsensusCommImpl service;
-    ServerBuilder builder;
-    builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-    builder.RegisterService(&service);
-    std::unique_ptr<Server> server(builder.BuildAndStart());
-    log_info(stderr, "RPC server listening on %s", server_address.c_str());
+    // ConsensusCommImpl service;
+    // ServerBuilder builder;
+    // builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+    // builder.RegisterService(&service);
+    // std::unique_ptr<Server> server(builder.BuildAndStart());
+    // log_info(stderr, "RPC server listening on %s", server_address.c_str());
 
     ready_flag = true;
 
