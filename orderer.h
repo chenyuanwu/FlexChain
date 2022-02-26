@@ -24,7 +24,7 @@
 
 #include "blockchain.grpc.pb.h"
 
-#define LOG_ENTRY_BATCH 10
+#define LOG_ENTRY_BATCH 200
 
 using namespace std;
 using grpc::Channel;

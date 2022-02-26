@@ -240,7 +240,7 @@ void run_leader(const std::string &server_address, std::string configfile) {
 }
 
 void *client_thread(void *arg) {
-    int trans_per_interval = 3000;
+    int trans_per_interval = 2000;
     int interval = 20000;
 
     default_random_engine generator;
@@ -249,15 +249,21 @@ void *client_thread(void *arg) {
     while (!ready_flag)
         ;
 
+    char *value = (char *)malloc(10 * 1024);
     while (!end_flag) {
-        int number = distribution(generator);
-        char value[1024] = {0};
-        string str = "value" + to_string(number);
-        strcpy(value, str.c_str());
-        pthread_mutex_lock(&tq.mutex);
-        tq.trans_queue.emplace(value, 1024);
-        pthread_mutex_unlock(&tq.mutex);
+        usleep(interval);
+
+        for (int i = 0; i < trans_per_interval; i++) {
+            int number = distribution(generator);
+            string str = "value" + to_string(number);
+            bzero(value, 10 * 1024);
+            strcpy(value, str.c_str());
+            pthread_mutex_lock(&tq.mutex);
+            tq.trans_queue.emplace(value, 10 * 1024);
+            pthread_mutex_unlock(&tq.mutex);
+        }
     }
+    free(value);
 }
 
 void *run_client(void *arg) {
