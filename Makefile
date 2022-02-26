@@ -15,7 +15,7 @@ PROTOS_PATH = .
 
 all: compute_server memory_server storage_server orderer
 
-compute_server: compute_server.cc benchmark.o setup_ib.o utils.o storage.pb.o storage.grpc.pb.o
+compute_server: compute_server.cc benchmark.o setup_ib.o utils.o storage.pb.o storage.grpc.pb.o blockchain.pb.o blockchain.grpc.pb.o
 	$(CXX) $(CPPFLAGS) -I../leveldb/include $(CXXFLAGS) $^ $(LDFLAGS) -o $@
 
 memory_server: memory_server.cc setup_ib.o utils.o storage.pb.o storage.grpc.pb.o
@@ -24,7 +24,7 @@ memory_server: memory_server.cc setup_ib.o utils.o storage.pb.o storage.grpc.pb.
 storage_server: storage_server.cc storage.pb.o storage.grpc.pb.o 
 	$(CXX) $(CPPFLAGS) -I../leveldb/include $(CXXFLAGS) $^ $(LDFLAGS) -o $@
 
-orderer: orderer.cc blockchain.pb.o blockchain.grpc.pb.o
+orderer: orderer.cc utils.o blockchain.pb.o blockchain.grpc.pb.o
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
 
 %.grpc.pb.cc: %.proto
