@@ -59,13 +59,13 @@ void *log_replication_thread(void *arg) {
 
 void *block_formation_thread(void *arg) {
     /* set up grpc channels to validators */
-    string configfile = *(string *)(arg);
-    string validator_grpc_endpoint;
-    fstream fs;
     shared_ptr<grpc::Channel> channel;
     unique_ptr<ComputeComm::Stub> stub;
     
     if (role == LEADER) {
+        string validator_grpc_endpoint;
+        fstream fs;
+        string configfile = *(string *)(arg);
         fs.open(configfile, fstream::in);
         for (string line; getline(fs, line);) {
             vector<string> tmp = split(line, "=");
@@ -215,12 +215,12 @@ void run_leader(const std::string &server_address, std::string configfile) {
     pthread_detach(block_form_tid);
 
     /* start the grpc server for ConsensusComm */
-    // ConsensusCommImpl service;
-    // ServerBuilder builder;
-    // builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
-    // builder.RegisterService(&service);
-    // std::unique_ptr<Server> server(builder.BuildAndStart());
-    // log_info(stderr, "RPC server listening on %s", server_address.c_str());
+    ConsensusCommImpl service;
+    ServerBuilder builder;
+    builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+    builder.RegisterService(&service);
+    std::unique_ptr<Server> server(builder.BuildAndStart());
+    log_info(stderr, "RPC server listening on %s", server_address.c_str());
 
     ready_flag = true;
 
