@@ -25,10 +25,10 @@
 #include <grpcpp/impl/codegen/stub_options.h>
 #include <grpcpp/impl/codegen/sync_stream.h>
 
-class Consensus final {
+class ConsensusComm final {
  public:
   static constexpr char const* service_full_name() {
-    return "Consensus";
+    return "ConsensusComm";
   }
   class StubInterface {
    public:
@@ -40,11 +40,20 @@ class Consensus final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::AppendResponse>> PrepareAsyncappend_entries(::grpc::ClientContext* context, const ::AppendRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::AppendResponse>>(PrepareAsyncappend_entriesRaw(context, request, cq));
     }
+    virtual ::grpc::Status send_to_leader(::grpc::ClientContext* context, const ::Endorsement& request, ::google::protobuf::Empty* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>> Asyncsend_to_leader(::grpc::ClientContext* context, const ::Endorsement& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>>(Asyncsend_to_leaderRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>> PrepareAsyncsend_to_leader(::grpc::ClientContext* context, const ::Endorsement& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>>(PrepareAsyncsend_to_leaderRaw(context, request, cq));
+    }
     class async_interface {
      public:
       virtual ~async_interface() {}
       virtual void append_entries(::grpc::ClientContext* context, const ::AppendRequest* request, ::AppendResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void append_entries(::grpc::ClientContext* context, const ::AppendRequest* request, ::AppendResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      virtual void send_to_leader(::grpc::ClientContext* context, const ::Endorsement* request, ::google::protobuf::Empty* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void send_to_leader(::grpc::ClientContext* context, const ::Endorsement* request, ::google::protobuf::Empty* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
     typedef class async_interface experimental_async_interface;
     virtual class async_interface* async() { return nullptr; }
@@ -52,6 +61,8 @@ class Consensus final {
    private:
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::AppendResponse>* Asyncappend_entriesRaw(::grpc::ClientContext* context, const ::AppendRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::AppendResponse>* PrepareAsyncappend_entriesRaw(::grpc::ClientContext* context, const ::AppendRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>* Asyncsend_to_leaderRaw(::grpc::ClientContext* context, const ::Endorsement& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>* PrepareAsyncsend_to_leaderRaw(::grpc::ClientContext* context, const ::Endorsement& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -63,11 +74,20 @@ class Consensus final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::AppendResponse>> PrepareAsyncappend_entries(::grpc::ClientContext* context, const ::AppendRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::AppendResponse>>(PrepareAsyncappend_entriesRaw(context, request, cq));
     }
+    ::grpc::Status send_to_leader(::grpc::ClientContext* context, const ::Endorsement& request, ::google::protobuf::Empty* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>> Asyncsend_to_leader(::grpc::ClientContext* context, const ::Endorsement& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>>(Asyncsend_to_leaderRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>> PrepareAsyncsend_to_leader(::grpc::ClientContext* context, const ::Endorsement& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>>(PrepareAsyncsend_to_leaderRaw(context, request, cq));
+    }
     class async final :
       public StubInterface::async_interface {
      public:
       void append_entries(::grpc::ClientContext* context, const ::AppendRequest* request, ::AppendResponse* response, std::function<void(::grpc::Status)>) override;
       void append_entries(::grpc::ClientContext* context, const ::AppendRequest* request, ::AppendResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void send_to_leader(::grpc::ClientContext* context, const ::Endorsement* request, ::google::protobuf::Empty* response, std::function<void(::grpc::Status)>) override;
+      void send_to_leader(::grpc::ClientContext* context, const ::Endorsement* request, ::google::protobuf::Empty* response, ::grpc::ClientUnaryReactor* reactor) override;
      private:
       friend class Stub;
       explicit async(Stub* stub): stub_(stub) { }
@@ -81,7 +101,10 @@ class Consensus final {
     class async async_stub_{this};
     ::grpc::ClientAsyncResponseReader< ::AppendResponse>* Asyncappend_entriesRaw(::grpc::ClientContext* context, const ::AppendRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::AppendResponse>* PrepareAsyncappend_entriesRaw(::grpc::ClientContext* context, const ::AppendRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* Asyncsend_to_leaderRaw(::grpc::ClientContext* context, const ::Endorsement& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* PrepareAsyncsend_to_leaderRaw(::grpc::ClientContext* context, const ::Endorsement& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_append_entries_;
+    const ::grpc::internal::RpcMethod rpcmethod_send_to_leader_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
 
@@ -90,6 +113,7 @@ class Consensus final {
     Service();
     virtual ~Service();
     virtual ::grpc::Status append_entries(::grpc::ServerContext* context, const ::AppendRequest* request, ::AppendResponse* response);
+    virtual ::grpc::Status send_to_leader(::grpc::ServerContext* context, const ::Endorsement* request, ::google::protobuf::Empty* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_append_entries : public BaseClass {
@@ -111,7 +135,27 @@ class Consensus final {
       ::grpc::Service::RequestAsyncUnary(0, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_append_entries<Service > AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_send_to_leader : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_send_to_leader() {
+      ::grpc::Service::MarkMethodAsync(1);
+    }
+    ~WithAsyncMethod_send_to_leader() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status send_to_leader(::grpc::ServerContext* /*context*/, const ::Endorsement* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void Requestsend_to_leader(::grpc::ServerContext* context, ::Endorsement* request, ::grpc::ServerAsyncResponseWriter< ::google::protobuf::Empty>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(1, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_append_entries<WithAsyncMethod_send_to_leader<Service > > AsyncService;
   template <class BaseClass>
   class WithCallbackMethod_append_entries : public BaseClass {
    private:
@@ -139,7 +183,34 @@ class Consensus final {
     virtual ::grpc::ServerUnaryReactor* append_entries(
       ::grpc::CallbackServerContext* /*context*/, const ::AppendRequest* /*request*/, ::AppendResponse* /*response*/)  { return nullptr; }
   };
-  typedef WithCallbackMethod_append_entries<Service > CallbackService;
+  template <class BaseClass>
+  class WithCallbackMethod_send_to_leader : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_send_to_leader() {
+      ::grpc::Service::MarkMethodCallback(1,
+          new ::grpc::internal::CallbackUnaryHandler< ::Endorsement, ::google::protobuf::Empty>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::Endorsement* request, ::google::protobuf::Empty* response) { return this->send_to_leader(context, request, response); }));}
+    void SetMessageAllocatorFor_send_to_leader(
+        ::grpc::MessageAllocator< ::Endorsement, ::google::protobuf::Empty>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(1);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::Endorsement, ::google::protobuf::Empty>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_send_to_leader() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status send_to_leader(::grpc::ServerContext* /*context*/, const ::Endorsement* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* send_to_leader(
+      ::grpc::CallbackServerContext* /*context*/, const ::Endorsement* /*request*/, ::google::protobuf::Empty* /*response*/)  { return nullptr; }
+  };
+  typedef WithCallbackMethod_append_entries<WithCallbackMethod_send_to_leader<Service > > CallbackService;
   typedef CallbackService ExperimentalCallbackService;
   template <class BaseClass>
   class WithGenericMethod_append_entries : public BaseClass {
@@ -154,6 +225,23 @@ class Consensus final {
     }
     // disable synchronous version of this method
     ::grpc::Status append_entries(::grpc::ServerContext* /*context*/, const ::AppendRequest* /*request*/, ::AppendResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_send_to_leader : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_send_to_leader() {
+      ::grpc::Service::MarkMethodGeneric(1);
+    }
+    ~WithGenericMethod_send_to_leader() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status send_to_leader(::grpc::ServerContext* /*context*/, const ::Endorsement* /*request*/, ::google::protobuf::Empty* /*response*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -179,6 +267,26 @@ class Consensus final {
     }
   };
   template <class BaseClass>
+  class WithRawMethod_send_to_leader : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_send_to_leader() {
+      ::grpc::Service::MarkMethodRaw(1);
+    }
+    ~WithRawMethod_send_to_leader() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status send_to_leader(::grpc::ServerContext* /*context*/, const ::Endorsement* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void Requestsend_to_leader(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(1, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
   class WithRawCallbackMethod_append_entries : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
@@ -198,6 +306,28 @@ class Consensus final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     virtual ::grpc::ServerUnaryReactor* append_entries(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_send_to_leader : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_send_to_leader() {
+      ::grpc::Service::MarkMethodRawCallback(1,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->send_to_leader(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_send_to_leader() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status send_to_leader(::grpc::ServerContext* /*context*/, const ::Endorsement* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* send_to_leader(
       ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
   };
   template <class BaseClass>
@@ -227,9 +357,243 @@ class Consensus final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status Streamedappend_entries(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::AppendRequest,::AppendResponse>* server_unary_streamer) = 0;
   };
-  typedef WithStreamedUnaryMethod_append_entries<Service > StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_send_to_leader : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_send_to_leader() {
+      ::grpc::Service::MarkMethodStreamed(1,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::Endorsement, ::google::protobuf::Empty>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::Endorsement, ::google::protobuf::Empty>* streamer) {
+                       return this->Streamedsend_to_leader(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_send_to_leader() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status send_to_leader(::grpc::ServerContext* /*context*/, const ::Endorsement* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status Streamedsend_to_leader(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::Endorsement,::google::protobuf::Empty>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_append_entries<WithStreamedUnaryMethod_send_to_leader<Service > > StreamedUnaryService;
   typedef Service SplitStreamedService;
-  typedef WithStreamedUnaryMethod_append_entries<Service > StreamedService;
+  typedef WithStreamedUnaryMethod_append_entries<WithStreamedUnaryMethod_send_to_leader<Service > > StreamedService;
+};
+
+class ComputeComm final {
+ public:
+  static constexpr char const* service_full_name() {
+    return "ComputeComm";
+  }
+  class StubInterface {
+   public:
+    virtual ~StubInterface() {}
+    virtual ::grpc::Status send_to_validator(::grpc::ClientContext* context, const ::Block& request, ::google::protobuf::Empty* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>> Asyncsend_to_validator(::grpc::ClientContext* context, const ::Block& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>>(Asyncsend_to_validatorRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>> PrepareAsyncsend_to_validator(::grpc::ClientContext* context, const ::Block& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>>(PrepareAsyncsend_to_validatorRaw(context, request, cq));
+    }
+    class async_interface {
+     public:
+      virtual ~async_interface() {}
+      virtual void send_to_validator(::grpc::ClientContext* context, const ::Block* request, ::google::protobuf::Empty* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void send_to_validator(::grpc::ClientContext* context, const ::Block* request, ::google::protobuf::Empty* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+    };
+    typedef class async_interface experimental_async_interface;
+    virtual class async_interface* async() { return nullptr; }
+    class async_interface* experimental_async() { return async(); }
+   private:
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>* Asyncsend_to_validatorRaw(::grpc::ClientContext* context, const ::Block& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>* PrepareAsyncsend_to_validatorRaw(::grpc::ClientContext* context, const ::Block& request, ::grpc::CompletionQueue* cq) = 0;
+  };
+  class Stub final : public StubInterface {
+   public:
+    Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
+    ::grpc::Status send_to_validator(::grpc::ClientContext* context, const ::Block& request, ::google::protobuf::Empty* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>> Asyncsend_to_validator(::grpc::ClientContext* context, const ::Block& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>>(Asyncsend_to_validatorRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>> PrepareAsyncsend_to_validator(::grpc::ClientContext* context, const ::Block& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>>(PrepareAsyncsend_to_validatorRaw(context, request, cq));
+    }
+    class async final :
+      public StubInterface::async_interface {
+     public:
+      void send_to_validator(::grpc::ClientContext* context, const ::Block* request, ::google::protobuf::Empty* response, std::function<void(::grpc::Status)>) override;
+      void send_to_validator(::grpc::ClientContext* context, const ::Block* request, ::google::protobuf::Empty* response, ::grpc::ClientUnaryReactor* reactor) override;
+     private:
+      friend class Stub;
+      explicit async(Stub* stub): stub_(stub) { }
+      Stub* stub() { return stub_; }
+      Stub* stub_;
+    };
+    class async* async() override { return &async_stub_; }
+
+   private:
+    std::shared_ptr< ::grpc::ChannelInterface> channel_;
+    class async async_stub_{this};
+    ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* Asyncsend_to_validatorRaw(::grpc::ClientContext* context, const ::Block& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* PrepareAsyncsend_to_validatorRaw(::grpc::ClientContext* context, const ::Block& request, ::grpc::CompletionQueue* cq) override;
+    const ::grpc::internal::RpcMethod rpcmethod_send_to_validator_;
+  };
+  static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
+
+  class Service : public ::grpc::Service {
+   public:
+    Service();
+    virtual ~Service();
+    virtual ::grpc::Status send_to_validator(::grpc::ServerContext* context, const ::Block* request, ::google::protobuf::Empty* response);
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_send_to_validator : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_send_to_validator() {
+      ::grpc::Service::MarkMethodAsync(0);
+    }
+    ~WithAsyncMethod_send_to_validator() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status send_to_validator(::grpc::ServerContext* /*context*/, const ::Block* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void Requestsend_to_validator(::grpc::ServerContext* context, ::Block* request, ::grpc::ServerAsyncResponseWriter< ::google::protobuf::Empty>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(0, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_send_to_validator<Service > AsyncService;
+  template <class BaseClass>
+  class WithCallbackMethod_send_to_validator : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_send_to_validator() {
+      ::grpc::Service::MarkMethodCallback(0,
+          new ::grpc::internal::CallbackUnaryHandler< ::Block, ::google::protobuf::Empty>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::Block* request, ::google::protobuf::Empty* response) { return this->send_to_validator(context, request, response); }));}
+    void SetMessageAllocatorFor_send_to_validator(
+        ::grpc::MessageAllocator< ::Block, ::google::protobuf::Empty>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(0);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::Block, ::google::protobuf::Empty>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_send_to_validator() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status send_to_validator(::grpc::ServerContext* /*context*/, const ::Block* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* send_to_validator(
+      ::grpc::CallbackServerContext* /*context*/, const ::Block* /*request*/, ::google::protobuf::Empty* /*response*/)  { return nullptr; }
+  };
+  typedef WithCallbackMethod_send_to_validator<Service > CallbackService;
+  typedef CallbackService ExperimentalCallbackService;
+  template <class BaseClass>
+  class WithGenericMethod_send_to_validator : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_send_to_validator() {
+      ::grpc::Service::MarkMethodGeneric(0);
+    }
+    ~WithGenericMethod_send_to_validator() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status send_to_validator(::grpc::ServerContext* /*context*/, const ::Block* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_send_to_validator : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_send_to_validator() {
+      ::grpc::Service::MarkMethodRaw(0);
+    }
+    ~WithRawMethod_send_to_validator() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status send_to_validator(::grpc::ServerContext* /*context*/, const ::Block* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void Requestsend_to_validator(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(0, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_send_to_validator : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_send_to_validator() {
+      ::grpc::Service::MarkMethodRawCallback(0,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->send_to_validator(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_send_to_validator() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status send_to_validator(::grpc::ServerContext* /*context*/, const ::Block* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* send_to_validator(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_send_to_validator : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_send_to_validator() {
+      ::grpc::Service::MarkMethodStreamed(0,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::Block, ::google::protobuf::Empty>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::Block, ::google::protobuf::Empty>* streamer) {
+                       return this->Streamedsend_to_validator(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_send_to_validator() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status send_to_validator(::grpc::ServerContext* /*context*/, const ::Block* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status Streamedsend_to_validator(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::Block,::google::protobuf::Empty>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_send_to_validator<Service > StreamedUnaryService;
+  typedef Service SplitStreamedService;
+  typedef WithStreamedUnaryMethod_send_to_validator<Service > StreamedService;
 };
 
 

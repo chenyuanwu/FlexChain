@@ -23,6 +23,7 @@
 static const char* KVStable_method_names[] = {
   "/KVStable/write_sstables",
   "/KVStable/read_sstables",
+  "/KVStable/write_blocks",
 };
 
 std::unique_ptr< KVStable::Stub> KVStable::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -34,6 +35,7 @@ std::unique_ptr< KVStable::Stub> KVStable::NewStub(const std::shared_ptr< ::grpc
 KVStable::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options)
   : channel_(channel), rpcmethod_write_sstables_(KVStable_method_names[0], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_read_sstables_(KVStable_method_names[1], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_write_blocks_(KVStable_method_names[2], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
 
 ::grpc::Status KVStable::Stub::write_sstables(::grpc::ClientContext* context, const ::EvictedBuffers& request, ::EvictionResponse* response) {
@@ -82,6 +84,29 @@ void KVStable::Stub::async::read_sstables(::grpc::ClientContext* context, const 
   return result;
 }
 
+::grpc::Status KVStable::Stub::write_blocks(::grpc::ClientContext* context, const ::SerialisedBlock& request, ::google::protobuf::Empty* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::SerialisedBlock, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_write_blocks_, context, request, response);
+}
+
+void KVStable::Stub::async::write_blocks(::grpc::ClientContext* context, const ::SerialisedBlock* request, ::google::protobuf::Empty* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::SerialisedBlock, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_write_blocks_, context, request, response, std::move(f));
+}
+
+void KVStable::Stub::async::write_blocks(::grpc::ClientContext* context, const ::SerialisedBlock* request, ::google::protobuf::Empty* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_write_blocks_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* KVStable::Stub::PrepareAsyncwrite_blocksRaw(::grpc::ClientContext* context, const ::SerialisedBlock& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::google::protobuf::Empty, ::SerialisedBlock, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_write_blocks_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* KVStable::Stub::Asyncwrite_blocksRaw(::grpc::ClientContext* context, const ::SerialisedBlock& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncwrite_blocksRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
 KVStable::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       KVStable_method_names[0],
@@ -103,6 +128,16 @@ KVStable::Service::Service() {
              ::GetResponse* resp) {
                return service->read_sstables(ctx, req, resp);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      KVStable_method_names[2],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< KVStable::Service, ::SerialisedBlock, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](KVStable::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::SerialisedBlock* req,
+             ::google::protobuf::Empty* resp) {
+               return service->write_blocks(ctx, req, resp);
+             }, this)));
 }
 
 KVStable::Service::~Service() {
@@ -116,6 +151,13 @@ KVStable::Service::~Service() {
 }
 
 ::grpc::Status KVStable::Service::read_sstables(::grpc::ServerContext* context, const ::GetRequest* request, ::GetResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status KVStable::Service::write_blocks(::grpc::ServerContext* context, const ::SerialisedBlock* request, ::google::protobuf::Empty* response) {
   (void) context;
   (void) request;
   (void) response;

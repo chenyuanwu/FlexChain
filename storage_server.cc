@@ -7,6 +7,7 @@
 #include <cassert>
 #include <filesystem>
 #include <iostream>
+#include <fstream>
 #include <string>
 
 #include "leveldb/db.h"
@@ -25,6 +26,8 @@ pthread_mutex_t logger_lock;
 
 class KVStableImpl final : public KVStable::Service {
    public:
+    explicit KVStableImpl() : block_store("blockchain.log", std::ios::out | std::ios::binary) {}
+
     Status write_sstables(ServerContext* context, const EvictedBuffers* request, EvictionResponse* response) override {
         leveldb::WriteBatch batch;
         for (auto it = request->eviction().begin(); it != request->eviction().end(); it++) {
@@ -68,6 +71,19 @@ class KVStableImpl final : public KVStable::Service {
 
         return Status::OK;
     }
+
+    Status write_blocks(ServerContext* context, const SerialisedBlock* request, google::protobuf::Empty* response) override {
+        std::string serialised_block;
+        request->SerializeToString(&serialised_block);
+        uint32_t size = serialised_block.size();
+        block_store.write((char *)&size, sizeof(uint32_t));
+        block_store.write(serialised_block.c_str(), size);
+        block_store.flush();
+
+        return Status::OK;
+    }
+    private:
+     std::ofstream block_store;
 };
 
 void run_server(const std::string& db_name, const std::string& server_address) {

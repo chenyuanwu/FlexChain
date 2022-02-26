@@ -12,10 +12,12 @@
 
 struct CConfigInfo c_config_info;
 struct ComputeIBInfo c_ib_info;
+BlockQueue bq;
 RequestQueue rq;
 DataCache datacache;
 MetaDataCache metadatacache;
-shared_ptr<grpc::Channel> channel_ptr;
+shared_ptr<grpc::Channel> storage_channel_ptr;
+shared_ptr<grpc::Channel> orderer_channel_ptr;
 pthread_mutex_t logger_lock;
 FILE *logger_fp;
 volatile int end_flag = 0;
@@ -285,7 +287,7 @@ void *background_handler(void *arg) {
             pthread_mutex_lock(&metadatacache.hashtable_lock);
 
             uint32_t num;
-            num = (metadatacache.lru_list.size() >= LRU_KEY_NUM) ? LRU_KEY_NUM  : metadatacache.lru_list.size();
+            num = (metadatacache.lru_list.size() >= LRU_KEY_NUM) ? LRU_KEY_NUM : metadatacache.lru_list.size();
             memcpy(write_buf, &num, sizeof(uint32_t));
             write_buf += sizeof(uint32_t);
 
@@ -412,13 +414,45 @@ void *background_handler(void *arg) {
     }
 }
 
+/* wrappers for the kv interface, to be used within the smart contracts */
+string s_kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &key, Endorsement &endorsement) {
+    string value;
+    value = kv_get(ctx, client, key);
+
+    uint64_t read_version_blockid;
+    uint64_t read_version_transid;
+    stringstream stream(value.substr(0, 64));
+    stream >> read_version_blockid;
+    stream.str(value.substr(64, 64));
+    stream >> read_version_transid;
+
+    ReadItem *read_item = endorsement.add_read_set();
+    read_item->set_read_key(key);
+    read_item->set_block_seq_num(read_version_blockid);
+    read_item->set_trans_seq_num(read_version_transid);
+
+    /* the value returned to smart contracts should not contain version numbers */
+    value.erase(0, 128);
+    return value;
+}
+
+int s_kv_put(const string &key, const string &value, Endorsement &endorsement) {
+    WriteItem *write_item = endorsement.add_write_set();
+    write_item->set_write_key(key);
+    write_item->set_write_value(value);
+
+    return 0;
+}
+
 /* simulate smart contract (X stage) */
 void *simulation_handler(void *arg) {
     struct ThreadContext ctx = *(struct ThreadContext *)arg;
     assert(ctx.m_cq != NULL);
     assert(ctx.m_qp != NULL);
-    /* set up grpc client */
-    KVStableClient client(channel_ptr);
+    /* set up grpc client for storage server */
+    KVStableClient storage_client(storage_channel_ptr);
+    /* set up grpc client for ordering service */
+    unique_ptr<ConsensusComm::Stub> orderer_stub(ConsensusComm::NewStub(orderer_channel_ptr));
 
     char *buf = (char *)malloc(1024 * 10);
     long local_ops = 0;
@@ -430,18 +464,22 @@ void *simulation_handler(void *arg) {
         rq.rq_queue.pop();
         pthread_mutex_unlock(&rq.mutex);
 
+        ClientContext context;
+        Endorsement endorsement;
+        google::protobuf::Empty rsp;
+
         /* the smart contract for microbenchmarks */
         if (proposal.type == Request::Type::GET) {
             string value;
-            // value = kv_get(ctx, client, proposal.key);
-            // client.read_sstables(proposal.key, value);
+            // value = kv_get(ctx, storage_client, proposal.key);
+            // storage_client.read_sstables(proposal.key, value);
             leveldb::Status s = db->Get(leveldb::ReadOptions(), proposal.key, &value);
             log_debug(logger_fp, "thread_index = #%d\trequest_type = GET\nget_key = %s\nget_value = %s\nget_size = %ld\n",
                       ctx.thread_index, proposal.key.c_str(), value.c_str(), value.size());
             local_ops++;
         } else if (proposal.type == Request::Type::PUT) {
             // int ret = kv_put(ctx, proposal.key, proposal.value);
-            // int ret = client.write_sstables(proposal.key, proposal.value);
+            // int ret = storage_client.write_sstables(proposal.key, proposal.value);
             bzero(buf, 1024 * 10);
             strcpy(buf, proposal.value.c_str());
             string value(buf, 1024 * 10);
@@ -462,13 +500,93 @@ void *simulation_handler(void *arg) {
                           ctx.thread_index, proposal.key.c_str());
             }
         }
+
+        /* send the generated endorsement to the client/orderer */
+        Status status = orderer_stub->send_to_leader(&context, endorsement, &rsp);
+        if (!status.ok()) {
+            log_err("gRPC failed with error message: %s.", status.error_message().c_str());
+        }
     }
     total_ops += local_ops;
     free(buf);
     return NULL;
 }
 
-void run_server() {
+/* validate and commit transactions (V stage) */
+void *validation_handler(void *arg) {
+    struct ThreadContext ctx = *(struct ThreadContext *)arg;
+    /* set up grpc client for storage server */
+    KVStableClient storage_client(storage_channel_ptr);
+    string block;
+
+    while (true) {
+        sem_wait(&bq.full);
+
+        for (int trans_id = 0; trans_id < bq.bq_queue.front().transactions_size(); trans_id++) {
+            bool is_valid = true;
+
+            const Endorsement &transaction = bq.bq_queue.front().transactions(trans_id);
+            for (int read_id = 0; read_id < transaction.read_set_size(); read_id++) {
+                uint64_t curr_version_blockid = 0;
+                uint64_t curr_version_transid = 0;
+
+                string value = kv_get(ctx, storage_client, transaction.read_set(read_id).read_key());
+                stringstream stream(value.substr(0, 64));
+                stream >> curr_version_blockid;
+                stream.str(value.substr(64, 64));
+                stream >> curr_version_transid;
+
+                if (curr_version_blockid != transaction.read_set(read_id).block_seq_num() ||
+                    curr_version_transid != transaction.read_set(read_id).trans_seq_num()) {
+                    is_valid = false;
+                    break;
+                }
+            }
+
+            if (is_valid) {
+                uint64_t curr_version_blockid = bq.bq_queue.front().block_id();
+                char *ver = (char *)malloc(2 * sizeof(uint64_t));
+                for (int write_id = 0; write_id < transaction.write_set_size(); write_id++) {
+                    uint64_t curr_version_transid = trans_id;
+
+                    bzero(ver, 2 * sizeof(uint64_t));
+                    memcpy(ver, &curr_version_blockid, sizeof(uint64_t));
+                    memcpy(ver + sizeof(uint64_t), &curr_version_transid, sizeof(uint64_t));
+                    string value(ver, 2 * sizeof(uint64_t));
+                    value += transaction.write_set(write_id).write_value();
+
+                    int ret = kv_put(ctx, transaction.write_set(write_id).write_key(), value);
+                }
+                free(ver);
+            }
+        }
+
+        /* store the block with its bit mask in remote block store */
+        if (!bq.bq_queue.front().SerializeToString(&block)) {
+            log_err("validator: failed to serialize block.");
+
+        }
+        storage_client.write_blocks(block);
+
+
+        pthread_mutex_lock(&bq.mutex);
+        bq.bq_queue.pop();
+        pthread_mutex_unlock(&bq.mutex);
+    }
+}
+
+class ComputeCommImpl final : public ComputeComm::Service {
+   public:
+    Status send_to_validator(ServerContext *context, const Block *request, google::protobuf::Empty *response) override {
+        pthread_mutex_lock(&bq.mutex);
+        bq.bq_queue.push(*request);
+        pthread_mutex_unlock(&bq.mutex);
+
+        return Status::OK;
+    }
+};
+
+void run_server(const string& server_address) {
     std::filesystem::remove_all("./testdb");
 
     options.create_if_missing = true;
@@ -476,6 +594,14 @@ void run_server() {
     options.write_buffer_size = 500 * 1024 * 1024;
     leveldb::Status s = leveldb::DB::Open(options, "./testdb", &db);
     assert(s.ok());
+
+    /* start the grpc server for ComputeComm service */
+    ComputeCommImpl service;
+    ServerBuilder builder;
+    builder.AddListeningPort(server_address, grpc::InsecureServerCredentials());
+    builder.RegisterService(&service);
+    std::unique_ptr<Server> server(builder.BuildAndStart());
+    log_info(stderr, "RPC server listening on %s", server_address.c_str());
 
     /* init local caches and spawn the thread pool */
     total_ops = 0;
@@ -488,6 +614,7 @@ void run_server() {
     pthread_create(&bg_tid, NULL, background_handler, NULL);
 
     int num_threads = c_config_info.num_qps_per_server;
+    int num_sim_threads = c_config_info.num_qps_per_server - 1;
     pthread_t tid[num_threads];
     struct ThreadContext *ctxs = (struct ThreadContext *)calloc(num_threads, sizeof(struct ThreadContext));
     for (int i = 0; i < num_threads; i++) {
@@ -496,17 +623,21 @@ void run_server() {
         ctxs[i].thread_index = i;
         ctxs[i].m_qp = c_ib_info.qp[i];
         ctxs[i].m_cq = c_ib_info.cq[i];
-        pthread_create(&tid[i], NULL, simulation_handler, &ctxs[i]);
+        if (i < num_sim_threads) {
+            pthread_create(&tid[i], NULL, simulation_handler, &ctxs[i]);
 
-        /* stick thread to a core for better performance */
-        int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
-        int core_id = i % num_cores;
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
-        CPU_SET(core_id, &cpuset);
-        int ret = pthread_setaffinity_np(tid[i], sizeof(cpu_set_t), &cpuset);
-        if (ret) {
-            log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
+            /* stick thread to a core for better performance */
+            int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
+            int core_id = i % num_cores;
+            cpu_set_t cpuset;
+            CPU_ZERO(&cpuset);
+            CPU_SET(core_id, &cpuset);
+            int ret = pthread_setaffinity_np(tid[i], sizeof(cpu_set_t), &cpuset);
+            if (ret) {
+                log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
+            }
+        } else {
+            pthread_create(&tid[i], NULL, validation_handler, &ctxs[i]);
         }
     }
 
@@ -573,6 +704,18 @@ int KVStableClient::write_sstables(const string &key, const string &value) {
     return 0;
 }
 
+int KVStableClient::write_blocks(const string &block) {
+    ClientContext context;
+    SerialisedBlock serialised_block;
+    google::protobuf::Empty rsp;
+
+    serialised_block.set_block(block);
+
+    Status status = stub_->write_blocks(&context, serialised_block, &rsp);
+
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
     /* set config info */
     c_config_info.num_qps_per_server = 64;
@@ -583,17 +726,21 @@ int main(int argc, char *argv[]) {
     c_config_info.bg_msg_size = 4 * 1024;              // 4KB, maximum size of background message
     c_config_info.sock_port = 4711;                    // socket port used by memory server to init RDMA connection
     c_config_info.sock_addr = "127.0.0.1";             // ip address of memory server
-    c_config_info.grpc_endpoint = "localhost:50051";   // address:port of the grpc server
 
     int opt;
     string configfile = "config/compute.config";
+    string server_address;
     while ((opt = getopt(argc, argv, "hc:")) != -1) {
         switch (opt) {
             case 'h':
                 fprintf(stderr, "compute server usage:\n");
                 fprintf(stderr, "\t-h: print this help message\n");
+                fprintf(stderr, "\t-a <server_ip:server_port>: the listening addr of grpc server\n");
                 fprintf(stderr, "\t-c <path_to_config_file>: path to the configuration file\n");
                 exit(0);
+            case 'a':
+                server_address = std::string(optarg);
+                break;
             case 'c':
                 configfile = string(optarg);
                 break;
@@ -626,8 +773,10 @@ int main(int argc, char *argv[]) {
             sstream >> c_config_info.sock_port;
         } else if (tmp[0] == "sock_addr") {
             c_config_info.sock_addr = tmp[1];
-        } else if (tmp[0] == "grpc_endpoint") {
-            c_config_info.grpc_endpoint = tmp[1];
+        } else if (tmp[0] == "storage_grpc_endpoint") {
+            c_config_info.storage_grpc_endpoint = tmp[1];
+        } else if (tmp[0] == "orderer_grpc_endpoint") {
+            c_config_info.orderer_grpc_endpoint = tmp[1];
         } else {
             fprintf(stderr, "Invalid config parameter `%s`.\n", tmp[0].c_str());
             exit(1);
@@ -640,11 +789,12 @@ int main(int argc, char *argv[]) {
     pthread_mutex_init(&logger_lock, NULL);
     logger_fp = fopen("compute_server.log", "w+");
 
-    /* set up grpc channel */
-    channel_ptr = grpc::CreateChannel(c_config_info.grpc_endpoint, grpc::InsecureChannelCredentials());
+    /* set up grpc channels */
+    storage_channel_ptr = grpc::CreateChannel(c_config_info.storage_grpc_endpoint, grpc::InsecureChannelCredentials());
+    orderer_channel_ptr = grpc::CreateChannel(c_config_info.orderer_grpc_endpoint, grpc::InsecureChannelCredentials());
 
     /* set up RDMA connection with the memory server */
     compute_setup_ib(c_config_info, c_ib_info);
 
-    run_server();
+    run_server(server_address);
 }

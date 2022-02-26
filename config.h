@@ -49,7 +49,8 @@ struct CConfigInfo {
     size_t bg_msg_size;
     uint16_t sock_port;
     string sock_addr;
-    string grpc_endpoint;
+    string storage_grpc_endpoint;
+    string orderer_grpc_endpoint;
 };
 
 #endif

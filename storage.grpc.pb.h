@@ -47,6 +47,13 @@ class KVStable final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::GetResponse>> PrepareAsyncread_sstables(::grpc::ClientContext* context, const ::GetRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::GetResponse>>(PrepareAsyncread_sstablesRaw(context, request, cq));
     }
+    virtual ::grpc::Status write_blocks(::grpc::ClientContext* context, const ::SerialisedBlock& request, ::google::protobuf::Empty* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>> Asyncwrite_blocks(::grpc::ClientContext* context, const ::SerialisedBlock& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>>(Asyncwrite_blocksRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>> PrepareAsyncwrite_blocks(::grpc::ClientContext* context, const ::SerialisedBlock& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>>(PrepareAsyncwrite_blocksRaw(context, request, cq));
+    }
     class async_interface {
      public:
       virtual ~async_interface() {}
@@ -54,6 +61,8 @@ class KVStable final {
       virtual void write_sstables(::grpc::ClientContext* context, const ::EvictedBuffers* request, ::EvictionResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
       virtual void read_sstables(::grpc::ClientContext* context, const ::GetRequest* request, ::GetResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void read_sstables(::grpc::ClientContext* context, const ::GetRequest* request, ::GetResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      virtual void write_blocks(::grpc::ClientContext* context, const ::SerialisedBlock* request, ::google::protobuf::Empty* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void write_blocks(::grpc::ClientContext* context, const ::SerialisedBlock* request, ::google::protobuf::Empty* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
     typedef class async_interface experimental_async_interface;
     virtual class async_interface* async() { return nullptr; }
@@ -63,6 +72,8 @@ class KVStable final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::EvictionResponse>* PrepareAsyncwrite_sstablesRaw(::grpc::ClientContext* context, const ::EvictedBuffers& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::GetResponse>* Asyncread_sstablesRaw(::grpc::ClientContext* context, const ::GetRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::GetResponse>* PrepareAsyncread_sstablesRaw(::grpc::ClientContext* context, const ::GetRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>* Asyncwrite_blocksRaw(::grpc::ClientContext* context, const ::SerialisedBlock& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::google::protobuf::Empty>* PrepareAsyncwrite_blocksRaw(::grpc::ClientContext* context, const ::SerialisedBlock& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -81,6 +92,13 @@ class KVStable final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::GetResponse>> PrepareAsyncread_sstables(::grpc::ClientContext* context, const ::GetRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::GetResponse>>(PrepareAsyncread_sstablesRaw(context, request, cq));
     }
+    ::grpc::Status write_blocks(::grpc::ClientContext* context, const ::SerialisedBlock& request, ::google::protobuf::Empty* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>> Asyncwrite_blocks(::grpc::ClientContext* context, const ::SerialisedBlock& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>>(Asyncwrite_blocksRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>> PrepareAsyncwrite_blocks(::grpc::ClientContext* context, const ::SerialisedBlock& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>>(PrepareAsyncwrite_blocksRaw(context, request, cq));
+    }
     class async final :
       public StubInterface::async_interface {
      public:
@@ -88,6 +106,8 @@ class KVStable final {
       void write_sstables(::grpc::ClientContext* context, const ::EvictedBuffers* request, ::EvictionResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
       void read_sstables(::grpc::ClientContext* context, const ::GetRequest* request, ::GetResponse* response, std::function<void(::grpc::Status)>) override;
       void read_sstables(::grpc::ClientContext* context, const ::GetRequest* request, ::GetResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void write_blocks(::grpc::ClientContext* context, const ::SerialisedBlock* request, ::google::protobuf::Empty* response, std::function<void(::grpc::Status)>) override;
+      void write_blocks(::grpc::ClientContext* context, const ::SerialisedBlock* request, ::google::protobuf::Empty* response, ::grpc::ClientUnaryReactor* reactor) override;
      private:
       friend class Stub;
       explicit async(Stub* stub): stub_(stub) { }
@@ -103,8 +123,11 @@ class KVStable final {
     ::grpc::ClientAsyncResponseReader< ::EvictionResponse>* PrepareAsyncwrite_sstablesRaw(::grpc::ClientContext* context, const ::EvictedBuffers& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::GetResponse>* Asyncread_sstablesRaw(::grpc::ClientContext* context, const ::GetRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::GetResponse>* PrepareAsyncread_sstablesRaw(::grpc::ClientContext* context, const ::GetRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* Asyncwrite_blocksRaw(::grpc::ClientContext* context, const ::SerialisedBlock& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* PrepareAsyncwrite_blocksRaw(::grpc::ClientContext* context, const ::SerialisedBlock& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_write_sstables_;
     const ::grpc::internal::RpcMethod rpcmethod_read_sstables_;
+    const ::grpc::internal::RpcMethod rpcmethod_write_blocks_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
 
@@ -114,6 +137,7 @@ class KVStable final {
     virtual ~Service();
     virtual ::grpc::Status write_sstables(::grpc::ServerContext* context, const ::EvictedBuffers* request, ::EvictionResponse* response);
     virtual ::grpc::Status read_sstables(::grpc::ServerContext* context, const ::GetRequest* request, ::GetResponse* response);
+    virtual ::grpc::Status write_blocks(::grpc::ServerContext* context, const ::SerialisedBlock* request, ::google::protobuf::Empty* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_write_sstables : public BaseClass {
@@ -155,7 +179,27 @@ class KVStable final {
       ::grpc::Service::RequestAsyncUnary(1, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_write_sstables<WithAsyncMethod_read_sstables<Service > > AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_write_blocks : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_write_blocks() {
+      ::grpc::Service::MarkMethodAsync(2);
+    }
+    ~WithAsyncMethod_write_blocks() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status write_blocks(::grpc::ServerContext* /*context*/, const ::SerialisedBlock* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void Requestwrite_blocks(::grpc::ServerContext* context, ::SerialisedBlock* request, ::grpc::ServerAsyncResponseWriter< ::google::protobuf::Empty>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(2, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_write_sstables<WithAsyncMethod_read_sstables<WithAsyncMethod_write_blocks<Service > > > AsyncService;
   template <class BaseClass>
   class WithCallbackMethod_write_sstables : public BaseClass {
    private:
@@ -210,7 +254,34 @@ class KVStable final {
     virtual ::grpc::ServerUnaryReactor* read_sstables(
       ::grpc::CallbackServerContext* /*context*/, const ::GetRequest* /*request*/, ::GetResponse* /*response*/)  { return nullptr; }
   };
-  typedef WithCallbackMethod_write_sstables<WithCallbackMethod_read_sstables<Service > > CallbackService;
+  template <class BaseClass>
+  class WithCallbackMethod_write_blocks : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_write_blocks() {
+      ::grpc::Service::MarkMethodCallback(2,
+          new ::grpc::internal::CallbackUnaryHandler< ::SerialisedBlock, ::google::protobuf::Empty>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::SerialisedBlock* request, ::google::protobuf::Empty* response) { return this->write_blocks(context, request, response); }));}
+    void SetMessageAllocatorFor_write_blocks(
+        ::grpc::MessageAllocator< ::SerialisedBlock, ::google::protobuf::Empty>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(2);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::SerialisedBlock, ::google::protobuf::Empty>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_write_blocks() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status write_blocks(::grpc::ServerContext* /*context*/, const ::SerialisedBlock* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* write_blocks(
+      ::grpc::CallbackServerContext* /*context*/, const ::SerialisedBlock* /*request*/, ::google::protobuf::Empty* /*response*/)  { return nullptr; }
+  };
+  typedef WithCallbackMethod_write_sstables<WithCallbackMethod_read_sstables<WithCallbackMethod_write_blocks<Service > > > CallbackService;
   typedef CallbackService ExperimentalCallbackService;
   template <class BaseClass>
   class WithGenericMethod_write_sstables : public BaseClass {
@@ -242,6 +313,23 @@ class KVStable final {
     }
     // disable synchronous version of this method
     ::grpc::Status read_sstables(::grpc::ServerContext* /*context*/, const ::GetRequest* /*request*/, ::GetResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_write_blocks : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_write_blocks() {
+      ::grpc::Service::MarkMethodGeneric(2);
+    }
+    ~WithGenericMethod_write_blocks() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status write_blocks(::grpc::ServerContext* /*context*/, const ::SerialisedBlock* /*request*/, ::google::protobuf::Empty* /*response*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -287,6 +375,26 @@ class KVStable final {
     }
   };
   template <class BaseClass>
+  class WithRawMethod_write_blocks : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_write_blocks() {
+      ::grpc::Service::MarkMethodRaw(2);
+    }
+    ~WithRawMethod_write_blocks() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status write_blocks(::grpc::ServerContext* /*context*/, const ::SerialisedBlock* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void Requestwrite_blocks(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(2, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
   class WithRawCallbackMethod_write_sstables : public BaseClass {
    private:
     void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
@@ -328,6 +436,28 @@ class KVStable final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     virtual ::grpc::ServerUnaryReactor* read_sstables(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_write_blocks : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_write_blocks() {
+      ::grpc::Service::MarkMethodRawCallback(2,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->write_blocks(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_write_blocks() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status write_blocks(::grpc::ServerContext* /*context*/, const ::SerialisedBlock* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* write_blocks(
       ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
   };
   template <class BaseClass>
@@ -384,9 +514,36 @@ class KVStable final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status Streamedread_sstables(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::GetRequest,::GetResponse>* server_unary_streamer) = 0;
   };
-  typedef WithStreamedUnaryMethod_write_sstables<WithStreamedUnaryMethod_read_sstables<Service > > StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_write_blocks : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_write_blocks() {
+      ::grpc::Service::MarkMethodStreamed(2,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::SerialisedBlock, ::google::protobuf::Empty>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::SerialisedBlock, ::google::protobuf::Empty>* streamer) {
+                       return this->Streamedwrite_blocks(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_write_blocks() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status write_blocks(::grpc::ServerContext* /*context*/, const ::SerialisedBlock* /*request*/, ::google::protobuf::Empty* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status Streamedwrite_blocks(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::SerialisedBlock,::google::protobuf::Empty>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_write_sstables<WithStreamedUnaryMethod_read_sstables<WithStreamedUnaryMethod_write_blocks<Service > > > StreamedUnaryService;
   typedef Service SplitStreamedService;
-  typedef WithStreamedUnaryMethod_write_sstables<WithStreamedUnaryMethod_read_sstables<Service > > StreamedService;
+  typedef WithStreamedUnaryMethod_write_sstables<WithStreamedUnaryMethod_read_sstables<WithStreamedUnaryMethod_write_blocks<Service > > > StreamedService;
 };
 
 

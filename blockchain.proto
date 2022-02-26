@@ -1,7 +1,13 @@
 syntax = "proto3";
+import "google/protobuf/empty.proto";
 
-service Consensus{
+service ConsensusComm {
     rpc append_entries (AppendRequest) returns (AppendResponse) {}
+    rpc send_to_leader (Endorsement) returns (google.protobuf.Empty) {}
+}
+
+service ComputeComm {
+    rpc send_to_validator (Block) returns (google.protobuf.Empty) {}
 }
 
 message AppendRequest {
@@ -13,3 +19,27 @@ message AppendResponse {
 
 }
 
+message ReadItem {
+    bytes read_key = 1;
+    // together represent the read version
+    uint64 block_seq_num = 2;
+    uint64 trans_seq_num = 3;
+}
+
+message WriteItem {
+    bytes write_key = 1;
+    bytes write_value = 2;
+}
+
+message Endorsement {
+    repeated ReadItem read_set = 1;
+    repeated WriteItem write_set = 2;
+    bytes transaction_id = 3; // derived from the client identifier and the nonce used by client
+    uint64 endorser_id = 4;
+    bytes endorser_signature = 5;
+}
+
+message Block {
+    repeated Endorsement transactions = 1;
+    uint64 block_id = 2;
+}

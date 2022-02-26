@@ -36,6 +36,7 @@
 #include <google/protobuf/map_field_inl.h>
 #include <google/protobuf/generated_enum_reflection.h>
 #include <google/protobuf/unknown_field_set.h>
+#include <google/protobuf/empty.pb.h>
 // @@protoc_insertion_point(includes)
 #include <google/protobuf/port_def.inc>
 #define PROTOBUF_INTERNAL_EXPORT_storage_2eproto
@@ -51,7 +52,7 @@ struct TableStruct_storage_2eproto {
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::AuxiliaryParseTableField aux[]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
-  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[5]
+  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[6]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::FieldMetadata field_metadata[];
   static const ::PROTOBUF_NAMESPACE_ID::internal::SerializationTable serialization_table[];
@@ -73,12 +74,16 @@ extern GetRequestDefaultTypeInternal _GetRequest_default_instance_;
 class GetResponse;
 struct GetResponseDefaultTypeInternal;
 extern GetResponseDefaultTypeInternal _GetResponse_default_instance_;
+class SerialisedBlock;
+struct SerialisedBlockDefaultTypeInternal;
+extern SerialisedBlockDefaultTypeInternal _SerialisedBlock_default_instance_;
 PROTOBUF_NAMESPACE_OPEN
 template<> ::EvictedBuffers* Arena::CreateMaybeMessage<::EvictedBuffers>(Arena*);
 template<> ::EvictedBuffers_EvictionEntry_DoNotUse* Arena::CreateMaybeMessage<::EvictedBuffers_EvictionEntry_DoNotUse>(Arena*);
 template<> ::EvictionResponse* Arena::CreateMaybeMessage<::EvictionResponse>(Arena*);
 template<> ::GetRequest* Arena::CreateMaybeMessage<::GetRequest>(Arena*);
 template<> ::GetResponse* Arena::CreateMaybeMessage<::GetResponse>(Arena*);
+template<> ::SerialisedBlock* Arena::CreateMaybeMessage<::SerialisedBlock>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
 
 enum GetResponse_Status : int {
@@ -742,6 +747,178 @@ class GetResponse final :
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_storage_2eproto;
 };
+// -------------------------------------------------------------------
+
+class SerialisedBlock final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:SerialisedBlock) */ {
+ public:
+  inline SerialisedBlock() : SerialisedBlock(nullptr) {}
+  ~SerialisedBlock() override;
+  explicit constexpr SerialisedBlock(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  SerialisedBlock(const SerialisedBlock& from);
+  SerialisedBlock(SerialisedBlock&& from) noexcept
+    : SerialisedBlock() {
+    *this = ::std::move(from);
+  }
+
+  inline SerialisedBlock& operator=(const SerialisedBlock& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline SerialisedBlock& operator=(SerialisedBlock&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const SerialisedBlock& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const SerialisedBlock* internal_default_instance() {
+    return reinterpret_cast<const SerialisedBlock*>(
+               &_SerialisedBlock_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    5;
+
+  friend void swap(SerialisedBlock& a, SerialisedBlock& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(SerialisedBlock* other) {
+    if (other == this) return;
+    if (GetOwningArena() == other->GetOwningArena()) {
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(SerialisedBlock* other) {
+    if (other == this) return;
+    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline SerialisedBlock* New() const final {
+    return new SerialisedBlock();
+  }
+
+  SerialisedBlock* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<SerialisedBlock>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const SerialisedBlock& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom(const SerialisedBlock& from);
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to, const ::PROTOBUF_NAMESPACE_ID::Message& from);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::PROTOBUF_NAMESPACE_ID::uint8* _InternalSerialize(
+      ::PROTOBUF_NAMESPACE_ID::uint8* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(SerialisedBlock* other);
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "SerialisedBlock";
+  }
+  protected:
+  explicit SerialisedBlock(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                       bool is_message_owned = false);
+  private:
+  static void ArenaDtor(void* object);
+  inline void RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kValidFlagsFieldNumber = 2,
+    kBlockFieldNumber = 1,
+  };
+  // repeated bool valid_flags = 2;
+  int valid_flags_size() const;
+  private:
+  int _internal_valid_flags_size() const;
+  public:
+  void clear_valid_flags();
+  private:
+  bool _internal_valid_flags(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >&
+      _internal_valid_flags() const;
+  void _internal_add_valid_flags(bool value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >*
+      _internal_mutable_valid_flags();
+  public:
+  bool valid_flags(int index) const;
+  void set_valid_flags(int index, bool value);
+  void add_valid_flags(bool value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >&
+      valid_flags() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >*
+      mutable_valid_flags();
+
+  // bytes block = 1;
+  void clear_block();
+  const std::string& block() const;
+  template <typename ArgT0 = const std::string&, typename... ArgT>
+  void set_block(ArgT0&& arg0, ArgT... args);
+  std::string* mutable_block();
+  PROTOBUF_MUST_USE_RESULT std::string* release_block();
+  void set_allocated_block(std::string* block);
+  private:
+  const std::string& _internal_block() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_block(const std::string& value);
+  std::string* _internal_mutable_block();
+  public:
+
+  // @@protoc_insertion_point(class_scope:SerialisedBlock)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool > valid_flags_;
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr block_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_storage_2eproto;
+};
 // ===================================================================
 
 
@@ -908,9 +1085,108 @@ inline void GetResponse::set_status(::GetResponse_Status value) {
   // @@protoc_insertion_point(field_set:GetResponse.status)
 }
 
+// -------------------------------------------------------------------
+
+// SerialisedBlock
+
+// bytes block = 1;
+inline void SerialisedBlock::clear_block() {
+  block_.ClearToEmpty();
+}
+inline const std::string& SerialisedBlock::block() const {
+  // @@protoc_insertion_point(field_get:SerialisedBlock.block)
+  return _internal_block();
+}
+template <typename ArgT0, typename... ArgT>
+inline PROTOBUF_ALWAYS_INLINE
+void SerialisedBlock::set_block(ArgT0&& arg0, ArgT... args) {
+ 
+ block_.SetBytes(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:SerialisedBlock.block)
+}
+inline std::string* SerialisedBlock::mutable_block() {
+  std::string* _s = _internal_mutable_block();
+  // @@protoc_insertion_point(field_mutable:SerialisedBlock.block)
+  return _s;
+}
+inline const std::string& SerialisedBlock::_internal_block() const {
+  return block_.Get();
+}
+inline void SerialisedBlock::_internal_set_block(const std::string& value) {
+  
+  block_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, value, GetArenaForAllocation());
+}
+inline std::string* SerialisedBlock::_internal_mutable_block() {
+  
+  return block_.Mutable(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, GetArenaForAllocation());
+}
+inline std::string* SerialisedBlock::release_block() {
+  // @@protoc_insertion_point(field_release:SerialisedBlock.block)
+  return block_.Release(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArenaForAllocation());
+}
+inline void SerialisedBlock::set_allocated_block(std::string* block) {
+  if (block != nullptr) {
+    
+  } else {
+    
+  }
+  block_.SetAllocated(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), block,
+      GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set_allocated:SerialisedBlock.block)
+}
+
+// repeated bool valid_flags = 2;
+inline int SerialisedBlock::_internal_valid_flags_size() const {
+  return valid_flags_.size();
+}
+inline int SerialisedBlock::valid_flags_size() const {
+  return _internal_valid_flags_size();
+}
+inline void SerialisedBlock::clear_valid_flags() {
+  valid_flags_.Clear();
+}
+inline bool SerialisedBlock::_internal_valid_flags(int index) const {
+  return valid_flags_.Get(index);
+}
+inline bool SerialisedBlock::valid_flags(int index) const {
+  // @@protoc_insertion_point(field_get:SerialisedBlock.valid_flags)
+  return _internal_valid_flags(index);
+}
+inline void SerialisedBlock::set_valid_flags(int index, bool value) {
+  valid_flags_.Set(index, value);
+  // @@protoc_insertion_point(field_set:SerialisedBlock.valid_flags)
+}
+inline void SerialisedBlock::_internal_add_valid_flags(bool value) {
+  valid_flags_.Add(value);
+}
+inline void SerialisedBlock::add_valid_flags(bool value) {
+  _internal_add_valid_flags(value);
+  // @@protoc_insertion_point(field_add:SerialisedBlock.valid_flags)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >&
+SerialisedBlock::_internal_valid_flags() const {
+  return valid_flags_;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >&
+SerialisedBlock::valid_flags() const {
+  // @@protoc_insertion_point(field_list:SerialisedBlock.valid_flags)
+  return _internal_valid_flags();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >*
+SerialisedBlock::_internal_mutable_valid_flags() {
+  return &valid_flags_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< bool >*
+SerialisedBlock::mutable_valid_flags() {
+  // @@protoc_insertion_point(field_mutable_list:SerialisedBlock.valid_flags)
+  return _internal_mutable_valid_flags();
+}
+
 #ifdef __GNUC__
   #pragma GCC diagnostic pop
 #endif  // __GNUC__
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------

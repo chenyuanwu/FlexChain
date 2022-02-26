@@ -6,12 +6,16 @@
 #include <grpcpp/client_context.h>
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
+#include <grpcpp/server.h>
+#include <grpcpp/server_builder.h>
+#include <grpcpp/server_context.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdio.h>
 #include <unistd.h>
 
 #include <atomic>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <list>
@@ -21,13 +25,17 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
-#include <filesystem>
+#include <vector>
 
+#include "blockchain.grpc.pb.h"
 #include "storage.grpc.pb.h"
 
 using namespace std;
 using grpc::Channel;
 using grpc::ClientContext;
+using grpc::Server;
+using grpc::ServerBuilder;
+using grpc::ServerContext;
 using grpc::Status;
 
 struct ThreadContext {
@@ -87,9 +95,27 @@ class KVStableClient {
 
     int read_sstables(const string& key, string& value);
     int write_sstables(const string& key, const string& value);
+    int write_blocks(const string& block);
 
    private:
     unique_ptr<KVStable::Stub> stub_;
+};
+
+class BlockQueue {
+   public:
+    queue<Block> bq_queue;
+    pthread_mutex_t mutex;
+    sem_t full;
+
+    BlockQueue() {
+        pthread_mutex_init(&mutex, NULL);
+        sem_init(&full, 0, 0);
+    }
+
+    ~BlockQueue() {
+        pthread_mutex_destroy(&mutex);
+        sem_destroy(&full);
+    }
 };
 
 #endif

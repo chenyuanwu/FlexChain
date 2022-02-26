@@ -20,60 +20,163 @@
 #include <grpcpp/impl/codegen/service_type.h>
 #include <grpcpp/impl/codegen/sync_stream.h>
 
-static const char* Consensus_method_names[] = {
-  "/Consensus/append_entries",
+static const char* ConsensusComm_method_names[] = {
+  "/ConsensusComm/append_entries",
+  "/ConsensusComm/send_to_leader",
 };
 
-std::unique_ptr< Consensus::Stub> Consensus::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
+std::unique_ptr< ConsensusComm::Stub> ConsensusComm::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
   (void)options;
-  std::unique_ptr< Consensus::Stub> stub(new Consensus::Stub(channel, options));
+  std::unique_ptr< ConsensusComm::Stub> stub(new ConsensusComm::Stub(channel, options));
   return stub;
 }
 
-Consensus::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options)
-  : channel_(channel), rpcmethod_append_entries_(Consensus_method_names[0], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+ConsensusComm::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options)
+  : channel_(channel), rpcmethod_append_entries_(ConsensusComm_method_names[0], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_send_to_leader_(ConsensusComm_method_names[1], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
 
-::grpc::Status Consensus::Stub::append_entries(::grpc::ClientContext* context, const ::AppendRequest& request, ::AppendResponse* response) {
+::grpc::Status ConsensusComm::Stub::append_entries(::grpc::ClientContext* context, const ::AppendRequest& request, ::AppendResponse* response) {
   return ::grpc::internal::BlockingUnaryCall< ::AppendRequest, ::AppendResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_append_entries_, context, request, response);
 }
 
-void Consensus::Stub::async::append_entries(::grpc::ClientContext* context, const ::AppendRequest* request, ::AppendResponse* response, std::function<void(::grpc::Status)> f) {
+void ConsensusComm::Stub::async::append_entries(::grpc::ClientContext* context, const ::AppendRequest* request, ::AppendResponse* response, std::function<void(::grpc::Status)> f) {
   ::grpc::internal::CallbackUnaryCall< ::AppendRequest, ::AppendResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_append_entries_, context, request, response, std::move(f));
 }
 
-void Consensus::Stub::async::append_entries(::grpc::ClientContext* context, const ::AppendRequest* request, ::AppendResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+void ConsensusComm::Stub::async::append_entries(::grpc::ClientContext* context, const ::AppendRequest* request, ::AppendResponse* response, ::grpc::ClientUnaryReactor* reactor) {
   ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_append_entries_, context, request, response, reactor);
 }
 
-::grpc::ClientAsyncResponseReader< ::AppendResponse>* Consensus::Stub::PrepareAsyncappend_entriesRaw(::grpc::ClientContext* context, const ::AppendRequest& request, ::grpc::CompletionQueue* cq) {
+::grpc::ClientAsyncResponseReader< ::AppendResponse>* ConsensusComm::Stub::PrepareAsyncappend_entriesRaw(::grpc::ClientContext* context, const ::AppendRequest& request, ::grpc::CompletionQueue* cq) {
   return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::AppendResponse, ::AppendRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_append_entries_, context, request);
 }
 
-::grpc::ClientAsyncResponseReader< ::AppendResponse>* Consensus::Stub::Asyncappend_entriesRaw(::grpc::ClientContext* context, const ::AppendRequest& request, ::grpc::CompletionQueue* cq) {
+::grpc::ClientAsyncResponseReader< ::AppendResponse>* ConsensusComm::Stub::Asyncappend_entriesRaw(::grpc::ClientContext* context, const ::AppendRequest& request, ::grpc::CompletionQueue* cq) {
   auto* result =
     this->PrepareAsyncappend_entriesRaw(context, request, cq);
   result->StartCall();
   return result;
 }
 
-Consensus::Service::Service() {
+::grpc::Status ConsensusComm::Stub::send_to_leader(::grpc::ClientContext* context, const ::Endorsement& request, ::google::protobuf::Empty* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::Endorsement, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_send_to_leader_, context, request, response);
+}
+
+void ConsensusComm::Stub::async::send_to_leader(::grpc::ClientContext* context, const ::Endorsement* request, ::google::protobuf::Empty* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::Endorsement, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_send_to_leader_, context, request, response, std::move(f));
+}
+
+void ConsensusComm::Stub::async::send_to_leader(::grpc::ClientContext* context, const ::Endorsement* request, ::google::protobuf::Empty* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_send_to_leader_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* ConsensusComm::Stub::PrepareAsyncsend_to_leaderRaw(::grpc::ClientContext* context, const ::Endorsement& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::google::protobuf::Empty, ::Endorsement, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_send_to_leader_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* ConsensusComm::Stub::Asyncsend_to_leaderRaw(::grpc::ClientContext* context, const ::Endorsement& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncsend_to_leaderRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+ConsensusComm::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      Consensus_method_names[0],
+      ConsensusComm_method_names[0],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
-      new ::grpc::internal::RpcMethodHandler< Consensus::Service, ::AppendRequest, ::AppendResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
-          [](Consensus::Service* service,
+      new ::grpc::internal::RpcMethodHandler< ConsensusComm::Service, ::AppendRequest, ::AppendResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](ConsensusComm::Service* service,
              ::grpc::ServerContext* ctx,
              const ::AppendRequest* req,
              ::AppendResponse* resp) {
                return service->append_entries(ctx, req, resp);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      ConsensusComm_method_names[1],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< ConsensusComm::Service, ::Endorsement, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](ConsensusComm::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::Endorsement* req,
+             ::google::protobuf::Empty* resp) {
+               return service->send_to_leader(ctx, req, resp);
+             }, this)));
 }
 
-Consensus::Service::~Service() {
+ConsensusComm::Service::~Service() {
 }
 
-::grpc::Status Consensus::Service::append_entries(::grpc::ServerContext* context, const ::AppendRequest* request, ::AppendResponse* response) {
+::grpc::Status ConsensusComm::Service::append_entries(::grpc::ServerContext* context, const ::AppendRequest* request, ::AppendResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status ConsensusComm::Service::send_to_leader(::grpc::ServerContext* context, const ::Endorsement* request, ::google::protobuf::Empty* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+
+static const char* ComputeComm_method_names[] = {
+  "/ComputeComm/send_to_validator",
+};
+
+std::unique_ptr< ComputeComm::Stub> ComputeComm::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
+  (void)options;
+  std::unique_ptr< ComputeComm::Stub> stub(new ComputeComm::Stub(channel, options));
+  return stub;
+}
+
+ComputeComm::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options)
+  : channel_(channel), rpcmethod_send_to_validator_(ComputeComm_method_names[0], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  {}
+
+::grpc::Status ComputeComm::Stub::send_to_validator(::grpc::ClientContext* context, const ::Block& request, ::google::protobuf::Empty* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::Block, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_send_to_validator_, context, request, response);
+}
+
+void ComputeComm::Stub::async::send_to_validator(::grpc::ClientContext* context, const ::Block* request, ::google::protobuf::Empty* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::Block, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_send_to_validator_, context, request, response, std::move(f));
+}
+
+void ComputeComm::Stub::async::send_to_validator(::grpc::ClientContext* context, const ::Block* request, ::google::protobuf::Empty* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_send_to_validator_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* ComputeComm::Stub::PrepareAsyncsend_to_validatorRaw(::grpc::ClientContext* context, const ::Block& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::google::protobuf::Empty, ::Block, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_send_to_validator_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* ComputeComm::Stub::Asyncsend_to_validatorRaw(::grpc::ClientContext* context, const ::Block& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncsend_to_validatorRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+ComputeComm::Service::Service() {
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      ComputeComm_method_names[0],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< ComputeComm::Service, ::Block, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](ComputeComm::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::Block* req,
+             ::google::protobuf::Empty* resp) {
+               return service->send_to_validator(ctx, req, resp);
+             }, this)));
+}
+
+ComputeComm::Service::~Service() {
+}
+
+::grpc::Status ComputeComm::Service::send_to_validator(::grpc::ServerContext* context, const ::Block* request, ::google::protobuf::Empty* response) {
   (void) context;
   (void) request;
   (void) response;

@@ -76,7 +76,20 @@ struct GetResponseDefaultTypeInternal {
   };
 };
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT GetResponseDefaultTypeInternal _GetResponse_default_instance_;
-static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_storage_2eproto[5];
+constexpr SerialisedBlock::SerialisedBlock(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : valid_flags_()
+  , block_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct SerialisedBlockDefaultTypeInternal {
+  constexpr SerialisedBlockDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~SerialisedBlockDefaultTypeInternal() {}
+  union {
+    SerialisedBlock _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT SerialisedBlockDefaultTypeInternal _SerialisedBlock_default_instance_;
+static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_storage_2eproto[6];
 static const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor* file_level_enum_descriptors_storage_2eproto[1];
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_storage_2eproto = nullptr;
 
@@ -119,6 +132,14 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_storage_2eproto::offsets[] PRO
   ~0u,  // no _inlined_string_donated_
   PROTOBUF_FIELD_OFFSET(::GetResponse, value_),
   PROTOBUF_FIELD_OFFSET(::GetResponse, status_),
+  ~0u,  // no _has_bits_
+  PROTOBUF_FIELD_OFFSET(::SerialisedBlock, _internal_metadata_),
+  ~0u,  // no _extensions_
+  ~0u,  // no _oneof_case_
+  ~0u,  // no _weak_field_map_
+  ~0u,  // no _inlined_string_donated_
+  PROTOBUF_FIELD_OFFSET(::SerialisedBlock, block_),
+  PROTOBUF_FIELD_OFFSET(::SerialisedBlock, valid_flags_),
 };
 static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
   { 0, 8, -1, sizeof(::EvictedBuffers_EvictionEntry_DoNotUse)},
@@ -126,6 +147,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 17, -1, -1, sizeof(::EvictionResponse)},
   { 23, -1, -1, sizeof(::GetRequest)},
   { 30, -1, -1, sizeof(::GetResponse)},
+  { 38, -1, -1, sizeof(::SerialisedBlock)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -134,25 +156,32 @@ static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] =
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::_EvictionResponse_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::_GetRequest_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::_GetResponse_default_instance_),
+  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::_SerialisedBlock_default_instance_),
 };
 
 const char descriptor_table_protodef_storage_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
-  "\n\rstorage.proto\"r\n\016EvictedBuffers\022/\n\010evi"
-  "ction\030\001 \003(\0132\035.EvictedBuffers.EvictionEnt"
-  "ry\032/\n\rEvictionEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005valu"
-  "e\030\002 \001(\014:\0028\001\"\022\n\020EvictionResponse\"\031\n\nGetRe"
-  "quest\022\013\n\003key\030\001 \001(\t\"o\n\013GetResponse\022\r\n\005val"
-  "ue\030\001 \001(\014\022#\n\006status\030\002 \001(\0162\023.GetResponse.S"
-  "tatus\",\n\006Status\022\t\n\005FOUND\020\000\022\014\n\010NOTFOUND\020\001"
-  "\022\t\n\005ERROR\020\0022p\n\010KVStable\0226\n\016write_sstable"
-  "s\022\017.EvictedBuffers\032\021.EvictionResponse\"\000\022"
-  ",\n\rread_sstables\022\013.GetRequest\032\014.GetRespo"
-  "nse\"\000b\006proto3"
+  "\n\rstorage.proto\032\033google/protobuf/empty.p"
+  "roto\"r\n\016EvictedBuffers\022/\n\010eviction\030\001 \003(\013"
+  "2\035.EvictedBuffers.EvictionEntry\032/\n\rEvict"
+  "ionEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\014:\0028\001"
+  "\"\022\n\020EvictionResponse\"\031\n\nGetRequest\022\013\n\003ke"
+  "y\030\001 \001(\t\"o\n\013GetResponse\022\r\n\005value\030\001 \001(\014\022#\n"
+  "\006status\030\002 \001(\0162\023.GetResponse.Status\",\n\006St"
+  "atus\022\t\n\005FOUND\020\000\022\014\n\010NOTFOUND\020\001\022\t\n\005ERROR\020\002"
+  "\"5\n\017SerialisedBlock\022\r\n\005block\030\001 \001(\014\022\023\n\013va"
+  "lid_flags\030\002 \003(\0102\254\001\n\010KVStable\0226\n\016write_ss"
+  "tables\022\017.EvictedBuffers\032\021.EvictionRespon"
+  "se\"\000\022,\n\rread_sstables\022\013.GetRequest\032\014.Get"
+  "Response\"\000\022:\n\014write_blocks\022\020.SerialisedB"
+  "lock\032\026.google.protobuf.Empty\"\000b\006proto3"
   ;
+static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_storage_2eproto_deps[1] = {
+  &::descriptor_table_google_2fprotobuf_2fempty_2eproto,
+};
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_storage_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_storage_2eproto = {
-  false, false, 413, descriptor_table_protodef_storage_2eproto, "storage.proto", 
-  &descriptor_table_storage_2eproto_once, nullptr, 0, 5,
+  false, false, 558, descriptor_table_protodef_storage_2eproto, "storage.proto", 
+  &descriptor_table_storage_2eproto_once, descriptor_table_storage_2eproto_deps, 1, 6,
   schemas, file_default_instances, TableStruct_storage_2eproto::offsets,
   file_level_metadata_storage_2eproto, file_level_enum_descriptors_storage_2eproto, file_level_service_descriptors_storage_2eproto,
 };
@@ -882,6 +911,231 @@ void GetResponse::InternalSwap(GetResponse* other) {
       file_level_metadata_storage_2eproto[4]);
 }
 
+// ===================================================================
+
+class SerialisedBlock::_Internal {
+ public:
+};
+
+SerialisedBlock::SerialisedBlock(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                         bool is_message_owned)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
+  valid_flags_(arena) {
+  SharedCtor();
+  if (!is_message_owned) {
+    RegisterArenaDtor(arena);
+  }
+  // @@protoc_insertion_point(arena_constructor:SerialisedBlock)
+}
+SerialisedBlock::SerialisedBlock(const SerialisedBlock& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message(),
+      valid_flags_(from.valid_flags_) {
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  block_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  if (!from._internal_block().empty()) {
+    block_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_block(), 
+      GetArenaForAllocation());
+  }
+  // @@protoc_insertion_point(copy_constructor:SerialisedBlock)
+}
+
+void SerialisedBlock::SharedCtor() {
+block_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+
+SerialisedBlock::~SerialisedBlock() {
+  // @@protoc_insertion_point(destructor:SerialisedBlock)
+  if (GetArenaForAllocation() != nullptr) return;
+  SharedDtor();
+  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+inline void SerialisedBlock::SharedDtor() {
+  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  block_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+
+void SerialisedBlock::ArenaDtor(void* object) {
+  SerialisedBlock* _this = reinterpret_cast< SerialisedBlock* >(object);
+  (void)_this;
+}
+void SerialisedBlock::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
+}
+void SerialisedBlock::SetCachedSize(int size) const {
+  _cached_size_.Set(size);
+}
+
+void SerialisedBlock::Clear() {
+// @@protoc_insertion_point(message_clear_start:SerialisedBlock)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  valid_flags_.Clear();
+  block_.ClearToEmpty();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* SerialisedBlock::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::PROTOBUF_NAMESPACE_ID::uint32 tag;
+    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // bytes block = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 10)) {
+          auto str = _internal_mutable_block();
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // repeated bool valid_flags = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 18)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedBoolParser(_internal_mutable_valid_flags(), ptr, ctx);
+          CHK_(ptr);
+        } else if (static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 16) {
+          _internal_add_valid_flags(::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr));
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::PROTOBUF_NAMESPACE_ID::uint8* SerialisedBlock::_InternalSerialize(
+    ::PROTOBUF_NAMESPACE_ID::uint8* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:SerialisedBlock)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // bytes block = 1;
+  if (!this->_internal_block().empty()) {
+    target = stream->WriteBytesMaybeAliased(
+        1, this->_internal_block(), target);
+  }
+
+  // repeated bool valid_flags = 2;
+  if (this->_internal_valid_flags_size() > 0) {
+    target = stream->WriteFixedPacked(2, _internal_valid_flags(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:SerialisedBlock)
+  return target;
+}
+
+size_t SerialisedBlock::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:SerialisedBlock)
+  size_t total_size = 0;
+
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated bool valid_flags = 2;
+  {
+    unsigned int count = static_cast<unsigned int>(this->_internal_valid_flags_size());
+    size_t data_size = 1UL * count;
+    if (data_size > 0) {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::Int32Size(
+            static_cast<::PROTOBUF_NAMESPACE_ID::int32>(data_size));
+    }
+    total_size += data_size;
+  }
+
+  // bytes block = 1;
+  if (!this->_internal_block().empty()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::BytesSize(
+        this->_internal_block());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData SerialisedBlock::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    SerialisedBlock::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*SerialisedBlock::GetClassData() const { return &_class_data_; }
+
+void SerialisedBlock::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
+                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+  static_cast<SerialisedBlock *>(to)->MergeFrom(
+      static_cast<const SerialisedBlock &>(from));
+}
+
+
+void SerialisedBlock::MergeFrom(const SerialisedBlock& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:SerialisedBlock)
+  GOOGLE_DCHECK_NE(&from, this);
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  valid_flags_.MergeFrom(from.valid_flags_);
+  if (!from._internal_block().empty()) {
+    _internal_set_block(from._internal_block());
+  }
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void SerialisedBlock::CopyFrom(const SerialisedBlock& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:SerialisedBlock)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool SerialisedBlock::IsInitialized() const {
+  return true;
+}
+
+void SerialisedBlock::InternalSwap(SerialisedBlock* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  valid_flags_.InternalSwap(&other->valid_flags_);
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
+      &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+      &block_, lhs_arena,
+      &other->block_, rhs_arena
+  );
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata SerialisedBlock::GetMetadata() const {
+  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+      &descriptor_table_storage_2eproto_getter, &descriptor_table_storage_2eproto_once,
+      file_level_metadata_storage_2eproto[5]);
+}
+
 // @@protoc_insertion_point(namespace_scope)
 PROTOBUF_NAMESPACE_OPEN
 template<> PROTOBUF_NOINLINE ::EvictedBuffers_EvictionEntry_DoNotUse* Arena::CreateMaybeMessage< ::EvictedBuffers_EvictionEntry_DoNotUse >(Arena* arena) {
@@ -898,6 +1152,9 @@ template<> PROTOBUF_NOINLINE ::GetRequest* Arena::CreateMaybeMessage< ::GetReque
 }
 template<> PROTOBUF_NOINLINE ::GetResponse* Arena::CreateMaybeMessage< ::GetResponse >(Arena* arena) {
   return Arena::CreateMessageInternal< ::GetResponse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::SerialisedBlock* Arena::CreateMaybeMessage< ::SerialisedBlock >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::SerialisedBlock >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
 
