@@ -144,6 +144,47 @@ void *block_formation_thread(void *arg) {
     total_ops = local_ops;
 }
 
+class ConsensusCommImpl final : public ConsensusComm::Service {
+   public:
+    explicit ConsensusCommImpl() : log("./consensus/raft.log", ios::out | ios::binary) {}
+
+    /* implementation of AppendEntriesRPC */
+    Status append_entries(ServerContext *context, const AppendRequest *request, AppendResponse *response) override {
+        int i = 0;
+        for (; i < request->log_entries_size(); i++) {
+            uint32_t size = request->log_entries(i).size();
+            log.write((char *)&size, sizeof(uint32_t));
+            log.write(request->log_entries(i).c_str(), size);
+            last_log_index++;
+        }
+        log.flush();
+
+        uint64_t leader_commit = request->leader_commit();
+        if (leader_commit > commit_index) {
+            if (leader_commit > last_log_index) {
+                commit_index = last_log_index.load();
+            } else {
+                commit_index = leader_commit;
+            }
+        }
+
+        log_debug(stderr, "AppendEntriesRPC finished: last_log_index = %ld, commit_index = %ld.", last_log_index.load(), commit_index.load());
+
+        return Status::OK;
+    }
+
+    Status send_to_leader(ServerContext *context, const Endorsement *endorsement, google::protobuf::Empty *response) override {
+        pthread_mutex_lock(&tq.mutex);
+        tq.trans_queue.emplace(endorsement->SerializeAsString());
+        pthread_mutex_unlock(&tq.mutex);
+
+        return Status::OK;
+    }
+
+   private:
+    ofstream log;
+};
+
 void run_leader(const std::string &server_address, std::string configfile) {
     std::filesystem::remove_all("./consensus");
     std::filesystem::create_directory("./consensus");
@@ -236,47 +277,6 @@ void *run_client(void *arg) {
     uint64_t time = (after - before).count();
     log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
 }
-
-class ConsensusCommImpl final : public ConsensusComm::Service {
-   public:
-    explicit ConsensusCommImpl() : log("./consensus/raft.log", ios::out | ios::binary) {}
-
-    /* implementation of AppendEntriesRPC */
-    Status append_entries(ServerContext *context, const AppendRequest *request, AppendResponse *response) override {
-        int i = 0;
-        for (; i < request->log_entries_size(); i++) {
-            uint32_t size = request->log_entries(i).size();
-            log.write((char *)&size, sizeof(uint32_t));
-            log.write(request->log_entries(i).c_str(), size);
-            last_log_index++;
-        }
-        log.flush();
-
-        uint64_t leader_commit = request->leader_commit();
-        if (leader_commit > commit_index) {
-            if (leader_commit > last_log_index) {
-                commit_index = last_log_index.load();
-            } else {
-                commit_index = leader_commit;
-            }
-        }
-
-        log_debug(stderr, "AppendEntriesRPC finished: last_log_index = %ld, commit_index = %ld.", last_log_index.load(), commit_index.load());
-
-        return Status::OK;
-    }
-
-    Status send_to_leader(ServerContext *context, const Endorsement *endorsement, google::protobuf::Empty *response) override {
-        pthread_mutex_lock(&tq.mutex);
-        tq.trans_queue.emplace(endorsement->SerializeAsString());
-        pthread_mutex_unlock(&tq.mutex);
-
-        return Status::OK;
-    }
-
-   private:
-    ofstream log;
-};
 
 void run_follower(const std::string &server_address) {
     std::filesystem::remove_all("./consensus");
