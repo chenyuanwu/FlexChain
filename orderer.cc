@@ -26,8 +26,6 @@ void *log_replication_thread(void *arg) {
 
     while (true) {
         if (last_log_index >= next_index[ctx.server_index]) {
-            // log_debug(stderr, "[server_index = %d]send append_entries RPC. last_log_index = %ld. next_index = %ld.",
-            //           ctx.server_index, last_log_index.load(), next_index[ctx.server_index].load());
             /* send AppendEntries RPC */
             ClientContext context;
             AppendRequest app_req;
@@ -48,6 +46,9 @@ void *log_replication_thread(void *arg) {
             if (!status.ok()) {
                 log_err("[server_index = %d]gRPC failed with error message: %s.", ctx.server_index, status.error_message().c_str());
                 continue;
+            } else {
+                log_debug(stderr, "[server_index = %d]send append_entries RPC. last_log_index = %ld. next_index = %ld. commit_index = %ld.",
+                          ctx.server_index, last_log_index.load(), next_index[ctx.server_index].load(), commit_index.load());
             }
 
             next_index[ctx.server_index] += index;
@@ -58,6 +59,7 @@ void *log_replication_thread(void *arg) {
 }
 
 void *block_formation_thread(void *arg) {
+    log_info(stderr, "Block formation thread is running.");
     /* set up grpc channels to validators */
     shared_ptr<grpc::Channel> channel;
     unique_ptr<ComputeComm::Stub> stub;
@@ -75,13 +77,12 @@ void *block_formation_thread(void *arg) {
             }
         }
         channel = grpc::CreateChannel(validator_grpc_endpoint, grpc::InsecureChannelCredentials());
-        while (channel->GetState(true) != GRPC_CHANNEL_READY)
-            ;
-        log_info(stderr, "block formation thread: channel for validator is in ready state.");
+        // while (channel->GetState(true) != GRPC_CHANNEL_READY)
+        //     ;
+        // log_info(stderr, "block formation thread: channel for validator is in ready state.");
         stub = ComputeComm::NewStub(channel);
     }
 
-    log_info(stderr, "Block formation thread is running.");
     ifstream log("./consensus/raft.log", ios::in);
     assert(log.is_open());
 
@@ -89,11 +90,10 @@ void *block_formation_thread(void *arg) {
     int majority = follower_grpc_endpoints.size() / 2;
     int block_index = 0;
     int trans_index = 0;
-    size_t max_block_size = 100 * 1024;
+    size_t max_block_size = 100;
     size_t curr_size = 0;
     int local_ops = 0;
 
-    ClientContext context;
     Block block;
     google::protobuf::Empty rsp;
 
@@ -123,7 +123,7 @@ void *block_formation_thread(void *arg) {
             string serialized_transaction(entry_ptr, size);
             free(entry_ptr);
 
-            log_debug(stderr, "[block_id = %d, trans_id = %d]: log_entry = %s", block_index, trans_index, entry_ptr);
+            log_debug(stderr, "[block_id = %d, trans_id = %d]: added transaction to block.", block_index, trans_index);
             Endorsement *transaction = block.add_transactions();
             if (!transaction->ParseFromString(serialized_transaction)) {
                 log_err("block formation thread: error in deserialising transaction.");
@@ -136,7 +136,14 @@ void *block_formation_thread(void *arg) {
                 /* cut the block and send it to all validators */
                 block.set_block_id(block_index);
                 if (role == LEADER) {
+                    ClientContext context;
+                    context.set_wait_for_ready(true);
                     Status status = stub->send_to_validator(&context, block, &rsp);  // TODO: use client stream + async
+                    if (!status.ok()) {
+                        log_err("block formation thread: gRPC failed with error message: %s.", status.error_message().c_str());
+                    } else {
+                        log_debug(stderr, "block formation thread: block #%ld is sent to validator.", block_index);
+                    }
                 }
 
                 curr_size = 0;
@@ -357,8 +364,8 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        pthread_t client_id;
-        pthread_create(&client_id, NULL, run_client, NULL);
+        // pthread_t client_id;
+        // pthread_create(&client_id, NULL, run_client, NULL);
 
         run_leader(server_addr, configfile);
     } else if (role == FOLLOWER) {
