@@ -417,14 +417,13 @@ void *background_handler(void *arg) {
 /* wrappers for the kv interface, to be used within the smart contracts */
 string s_kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &key, Endorsement &endorsement) {
     string value;
-    value = kv_get(ctx, client, key);
+    // value = kv_get(ctx, client, key);
+    leveldb::Status s = db->Get(leveldb::ReadOptions(), key, &value);
 
-    uint64_t read_version_blockid;
-    uint64_t read_version_transid;
-    stringstream stream(value.substr(0, 64));
-    stream >> read_version_blockid;
-    stream.str(value.substr(64, 64));
-    stream >> read_version_transid;
+    uint64_t read_version_blockid = 0;
+    uint64_t read_version_transid = 0;
+    memcpy(&read_version_blockid, value.c_str(), sizeof(uint64_t));
+    memcpy(&read_version_transid, value.c_str() + sizeof(uint64_t), sizeof(uint64_t));
 
     ReadItem *read_item = endorsement.add_read_set();
     read_item->set_read_key(key);
@@ -433,6 +432,12 @@ string s_kv_get(struct ThreadContext &ctx, KVStableClient &client, const string 
 
     /* the value returned to smart contracts should not contain version numbers */
     value.erase(0, 128);
+
+    log_debug(logger_fp,
+              "s_kv_get[thread_index = %d, key = %s]:\n"
+              "version [block_id = %ld, trans_id = %ld] is stored in read set.\n",
+              ctx.thread_index, key.c_str(), read_item->block_seq_num(), read_item->trans_seq_num());
+
     return value;
 }
 
@@ -454,7 +459,7 @@ void *simulation_handler(void *arg) {
     /* set up grpc client for ordering service */
     unique_ptr<ConsensusComm::Stub> orderer_stub(ConsensusComm::NewStub(orderer_channel_ptr));
 
-    char *buf = (char *)malloc(1024 * 10);
+    char *buf = (char *)malloc(c_config_info.data_msg_size);
     long local_ops = 0;
     while (!end_flag) {
         sem_wait(&rq.full);
@@ -468,36 +473,72 @@ void *simulation_handler(void *arg) {
         Endorsement endorsement;
         google::protobuf::Empty rsp;
 
-        /* the smart contract for microbenchmarks */
+        /* the smart contract */
         if (proposal.type == Request::Type::GET) {
-            string value;
+            // string value;
             // value = kv_get(ctx, storage_client, proposal.key);
             // storage_client.read_sstables(proposal.key, value);
-            leveldb::Status s = db->Get(leveldb::ReadOptions(), proposal.key, &value);
-            log_debug(logger_fp, "thread_index = #%d\trequest_type = GET\nget_key = %s\nget_value = %s\nget_size = %ld\n",
-                      ctx.thread_index, proposal.key.c_str(), value.c_str(), value.size());
-            local_ops++;
+            // leveldb::Status s = db->Get(leveldb::ReadOptions(), proposal.key, &value);
+            // log_debug(logger_fp, "thread_index = #%d\trequest_type = GET\nget_key = %s\nget_value = %s\nget_size = %ld\n",
+            //           ctx.thread_index, proposal.key.c_str(), value.c_str(), value.size());
+            // local_ops++;
+
+            s_kv_get(ctx, storage_client, proposal.key, endorsement);
         } else if (proposal.type == Request::Type::PUT) {
             // int ret = kv_put(ctx, proposal.key, proposal.value);
             // int ret = storage_client.write_sstables(proposal.key, proposal.value);
-            bzero(buf, 1024 * 10);
-            strcpy(buf, proposal.value.c_str());
-            string value(buf, 1024 * 10);
+            // bzero(buf, 1024 * 10);
+            // strcpy(buf, proposal.value.c_str());
+            // string value(buf, 1024 * 10);
 
-            leveldb::Status s = db->Put(leveldb::WriteOptions(), proposal.key, value);
-            int ret = 0;
-            if (!s.ok()) {
-                ret = 1;
-            }
-            if (!ret) {
-                log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\nput_value = %s\n",
-                          ctx.thread_index, proposal.key.c_str(), proposal.value.c_str());
-                if (!proposal.is_prep) {
-                    local_ops++;
+            // leveldb::Status s = db->Put(leveldb::WriteOptions(), proposal.key, value);
+            // int ret = 0;
+            // if (!s.ok()) {
+            //     ret = 1;
+            // }
+            // if (!ret) {
+            //     log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\nput_value = %s\n",
+            //               ctx.thread_index, proposal.key.c_str(), proposal.value.c_str());
+            //     if (!proposal.is_prep) {
+            //         local_ops++;
+            //     }
+            // } else {
+            //     log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\noperation failed...\n",
+            //               ctx.thread_index, proposal.key.c_str());
+            // }
+
+            bzero(buf, c_config_info.data_msg_size);
+            strcpy(buf, proposal.value.c_str());
+            // size_t meta_data_size = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + proposal.key.length() + 2 * sizeof(uint64_t);
+            size_t meta_data_size = 0;
+            proposal.value.assign(buf, c_config_info.data_msg_size - meta_data_size);
+            /* if it is prepopulation */
+            if (proposal.is_prep) {
+                uint64_t curr_version_blockid = 0;
+                uint64_t curr_version_transid = 0;
+                char *ver = (char *)malloc(2 * sizeof(uint64_t));
+                bzero(ver, 2 * sizeof(uint64_t));
+                memcpy(ver, &curr_version_blockid, sizeof(uint64_t));
+                memcpy(ver + sizeof(uint64_t), &curr_version_transid, sizeof(uint64_t));
+                string value(ver, 2 * sizeof(uint64_t));
+                value += proposal.value;
+
+                // int ret = kv_put(ctx, proposal.key, value);
+                leveldb::Status s = db->Put(leveldb::WriteOptions(), proposal.key, value);
+                int ret = 0;
+                if (!s.ok()) {
+                    ret = 1;
                 }
+                if (!ret) {
+                    log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\nput_value = %s\n",
+                              ctx.thread_index, proposal.key.c_str(), proposal.value.c_str());
+                } else {
+                    log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\noperation failed...\n",
+                              ctx.thread_index, proposal.key.c_str());
+                }
+                continue;
             } else {
-                log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\noperation failed...\n",
-                          ctx.thread_index, proposal.key.c_str());
+                s_kv_put(proposal.key, proposal.value, endorsement);
             }
         }
 
@@ -507,7 +548,7 @@ void *simulation_handler(void *arg) {
             log_err("gRPC failed with error message: %s.", status.error_message().c_str());
         }
     }
-    total_ops += local_ops;
+    // total_ops += local_ops;
     free(buf);
     return NULL;
 }
@@ -519,10 +560,13 @@ void *validation_handler(void *arg) {
     KVStableClient storage_client(storage_channel_ptr);
     string block;
 
-    while (true) {
+    long local_ops = 0;
+    while (!end_flag) {
         sem_wait(&bq.full);
 
         for (int trans_id = 0; trans_id < bq.bq_queue.front().transactions_size(); trans_id++) {
+            log_debug(logger_fp, "******validating transaction[block_id = %ld, trans_id = %d]******",
+                      bq.bq_queue.front().block_id(), trans_id);
             bool is_valid = true;
 
             const Endorsement &transaction = bq.bq_queue.front().transactions(trans_id);
@@ -530,11 +574,19 @@ void *validation_handler(void *arg) {
                 uint64_t curr_version_blockid = 0;
                 uint64_t curr_version_transid = 0;
 
-                string value = kv_get(ctx, storage_client, transaction.read_set(read_id).read_key());
-                stringstream stream(value.substr(0, 64));
-                stream >> curr_version_blockid;
-                stream.str(value.substr(64, 64));
-                stream >> curr_version_transid;
+                string value;
+                // value = kv_get(ctx, storage_client, transaction.read_set(read_id).read_key());
+                leveldb::Status s = db->Get(leveldb::ReadOptions(), transaction.read_set(read_id).read_key(), &value);
+                memcpy(&curr_version_blockid, value.c_str(), sizeof(uint64_t));
+                memcpy(&curr_version_transid, value.c_str() + sizeof(uint64_t), sizeof(uint64_t));
+
+                log_debug(logger_fp,
+                          "read_key = %s\nstored_read_version = [block_id = %ld, trans_id = %ld]\n"
+                          "current_key_version = [block_id = %ld, trans_id = %ld]",
+                          transaction.read_set(read_id).read_key().c_str(),
+                          transaction.read_set(read_id).block_seq_num(),
+                          transaction.read_set(read_id).trans_seq_num(),
+                          curr_version_blockid, curr_version_transid);
 
                 if (curr_version_blockid != transaction.read_set(read_id).block_seq_num() ||
                     curr_version_transid != transaction.read_set(read_id).trans_seq_num()) {
@@ -555,24 +607,33 @@ void *validation_handler(void *arg) {
                     string value(ver, 2 * sizeof(uint64_t));
                     value += transaction.write_set(write_id).write_value();
 
-                    int ret = kv_put(ctx, transaction.write_set(write_id).write_key(), value);
+                    // int ret = kv_put(ctx, transaction.write_set(write_id).write_key(), value);
+                    leveldb::Status s = db->Put(leveldb::WriteOptions(), transaction.write_set(write_id).write_key(), value);
+
+                    log_debug(logger_fp, "write_key = %s\nwrite_value = %s",
+                              transaction.write_set(write_id).write_key().c_str(),
+                              transaction.write_set(write_id).write_value().c_str());
                 }
                 free(ver);
+                log_debug(logger_fp, "transaction is committed.\n");
+                local_ops++;
+            } else {
+                log_debug(logger_fp, "transaction is aborted: found stale read version.\n");
             }
         }
 
         /* store the block with its bit mask in remote block store */
         if (!bq.bq_queue.front().SerializeToString(&block)) {
             log_err("validator: failed to serialize block.");
-
         }
         storage_client.write_blocks(block);
-
 
         pthread_mutex_lock(&bq.mutex);
         bq.bq_queue.pop();
         pthread_mutex_unlock(&bq.mutex);
     }
+    total_ops += local_ops;
+    return NULL;
 }
 
 class ComputeCommImpl final : public ComputeComm::Service {
@@ -581,17 +642,18 @@ class ComputeCommImpl final : public ComputeComm::Service {
         pthread_mutex_lock(&bq.mutex);
         bq.bq_queue.push(*request);
         pthread_mutex_unlock(&bq.mutex);
+        sem_post(&bq.full);
 
         return Status::OK;
     }
 };
 
-void run_server(const string& server_address) {
+void run_server(const string &server_address) {
     std::filesystem::remove_all("./testdb");
 
     options.create_if_missing = true;
     options.error_if_exists = true;
-    options.write_buffer_size = 500 * 1024 * 1024;
+    // options.write_buffer_size = 4096000000;
     leveldb::Status s = leveldb::DB::Open(options, "./testdb", &db);
     assert(s.ok());
 
@@ -730,7 +792,7 @@ int main(int argc, char *argv[]) {
     int opt;
     string configfile = "config/compute.config";
     string server_address;
-    while ((opt = getopt(argc, argv, "hc:")) != -1) {
+    while ((opt = getopt(argc, argv, "ha:c:")) != -1) {
         switch (opt) {
             case 'h':
                 fprintf(stderr, "compute server usage:\n");

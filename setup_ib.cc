@@ -509,6 +509,9 @@ int compute_setup_ib(struct CConfigInfo &c_config_info, struct ComputeIBInfo &c_
 
     /* register mr */
     c_ib_info.ib_data_buf = (char *)memalign(4096, c_config_info.data_cache_size);
+    if (c_ib_info.ib_data_buf == NULL) {
+        log_err("Failed to allocate ib_data_buf.");
+    }
     c_ib_info.ib_control_buf = (char *)memalign(4096, c_config_info.ctrl_buffer_size);
     c_ib_info.ib_bg_buf = (char *)memalign(4096, c_config_info.bg_msg_size);
     c_ib_info.mr_data = ibv_reg_mr(c_ib_info.pd, (void *)c_ib_info.ib_data_buf, c_config_info.data_cache_size,
