@@ -357,12 +357,15 @@ void *bookkeeping_agent(void *arg) {
 }
 
 int run_server() {
-    /* spawn agent threads: each agent is single threaded for now. */
-    for (int offset = 0; offset < m_config_info.data_slab_size; offset += m_config_info.data_msg_size) {
+    /* init space allocator */
+    size_t offset;
+    for (offset = 0; offset < m_config_info.data_slab_size; offset += m_config_info.data_msg_size) {
         space_allocator.free_addrs.push(&m_ib_info.ib_data_buf[offset]);
     }
     sem_init(&space_allocator.full, 0, space_allocator.free_addrs.size());
-
+    log_info(stderr, "main thread: remote memory pool contains %ld free_addrs.", space_allocator.free_addrs.size());
+    
+    /* spawn agent threads: each agent is single threaded for now. */
     pthread_t tid_bg;
     pthread_create(&tid_bg, NULL, eviction_manager, NULL);
     pthread_detach(tid_bg);
