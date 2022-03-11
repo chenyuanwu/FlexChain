@@ -90,7 +90,7 @@ void *block_formation_thread(void *arg) {
     int majority = follower_grpc_endpoints.size() / 2;
     int block_index = 0;
     int trans_index = 0;
-    size_t max_block_size = 100;
+    size_t max_block_size = 200 * 1024;
     size_t curr_size = 0;
     int local_ops = 0;
 
@@ -138,6 +138,8 @@ void *block_formation_thread(void *arg) {
                 if (role == LEADER) {
                     ClientContext context;
                     context.set_wait_for_ready(true);
+                    // stub->async()->send_to_validator(&context, &block, &rsp, [](Status s){});
+
                     Status status = stub->send_to_validator(&context, block, &rsp);  // TODO: use client stream + async
                     if (!status.ok()) {
                         log_err("block formation thread: gRPC failed with error message: %s.", status.error_message().c_str());
