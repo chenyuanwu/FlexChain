@@ -22,13 +22,18 @@ pthread_mutex_t logger_lock;
 FILE *logger_fp;
 volatile int end_flag = 0;
 volatile int start_flag = 0;
-atomic<long> total_ops;
+atomic<long> total_ops = 0;
+
+atomic<long> cache_hit = 0;
+atomic<long> sst_count = 0;
+atomic<long> cache_total = 0;
 
 leveldb::DB *db;
 leveldb::Options options;
 
 /* read from the disaggregated key value store */
 string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &key) {
+    cache_total++;
     /* find cursor of this key */
     pthread_mutex_lock(&metadatacache.hashtable_lock);
     uint64_t ptr_next = 0;
@@ -104,6 +109,7 @@ string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &k
         pthread_mutex_unlock(&datacache.hashtable_lock);
 
         if (local_ptr != 0) {
+            cache_hit++;
             /* the buffer is cached locally */
             log_debug(stderr, "kv_get[thread_index = %d, key = %s]: found in local data cache (raddr = 0x%lx, laddr = 0x%lx).",
                       ctx.thread_index, key.c_str(), ptr_next, local_ptr);
@@ -170,6 +176,7 @@ string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &k
             }
         }
     } else {
+        sst_count++;
         /* search in SSTables on the storage server */
         log_debug(stderr, "kv_get[thread_index = %d, key = %s]: read from sstables.", ctx.thread_index, key.c_str());
         string value;
@@ -417,8 +424,8 @@ void *background_handler(void *arg) {
 /* wrappers for the kv interface, to be used within the smart contracts */
 string s_kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &key, Endorsement &endorsement) {
     string value;
-    // value = kv_get(ctx, client, key);
-    leveldb::Status s = db->Get(leveldb::ReadOptions(), key, &value);
+    value = kv_get(ctx, client, key);
+    // leveldb::Status s = db->Get(leveldb::ReadOptions(), key, &value);
 
     uint64_t read_version_blockid = 0;
     uint64_t read_version_transid = 0;
@@ -509,8 +516,8 @@ void *simulation_handler(void *arg) {
 
             bzero(buf, c_config_info.data_msg_size);
             strcpy(buf, proposal.value.c_str());
-            // size_t meta_data_size = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + proposal.key.length() + 2 * sizeof(uint64_t);
-            size_t meta_data_size = 0;
+            size_t meta_data_size = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + proposal.key.length() + 2 * sizeof(uint64_t);
+            // size_t meta_data_size = 0;
             proposal.value.assign(buf, c_config_info.data_msg_size - meta_data_size);
             /* if it is prepopulation */
             if (proposal.is_prep) {
@@ -523,12 +530,12 @@ void *simulation_handler(void *arg) {
                 string value(ver, 2 * sizeof(uint64_t));
                 value += proposal.value;
 
-                // int ret = kv_put(ctx, proposal.key, value);
-                leveldb::Status s = db->Put(leveldb::WriteOptions(), proposal.key, value);
-                int ret = 0;
-                if (!s.ok()) {
-                    ret = 1;
-                }
+                int ret = kv_put(ctx, proposal.key, value);
+                // leveldb::Status s = db->Put(leveldb::WriteOptions(), proposal.key, value);
+                // int ret = 0;
+                // if (!s.ok()) {
+                //     ret = 1;
+                // }
                 if (!ret) {
                     log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\nput_value = %s\n",
                               ctx.thread_index, proposal.key.c_str(), proposal.value.c_str());
@@ -575,8 +582,8 @@ void *validation_handler(void *arg) {
                 uint64_t curr_version_transid = 0;
 
                 string value;
-                // value = kv_get(ctx, storage_client, transaction.read_set(read_id).read_key());
-                leveldb::Status s = db->Get(leveldb::ReadOptions(), transaction.read_set(read_id).read_key(), &value);
+                value = kv_get(ctx, storage_client, transaction.read_set(read_id).read_key());
+                // leveldb::Status s = db->Get(leveldb::ReadOptions(), transaction.read_set(read_id).read_key(), &value);
                 memcpy(&curr_version_blockid, value.c_str(), sizeof(uint64_t));
                 memcpy(&curr_version_transid, value.c_str() + sizeof(uint64_t), sizeof(uint64_t));
 
@@ -607,8 +614,8 @@ void *validation_handler(void *arg) {
                     string value(ver, 2 * sizeof(uint64_t));
                     value += transaction.write_set(write_id).write_value();
 
-                    // int ret = kv_put(ctx, transaction.write_set(write_id).write_key(), value);
-                    leveldb::Status s = db->Put(leveldb::WriteOptions(), transaction.write_set(write_id).write_key(), value);
+                    int ret = kv_put(ctx, transaction.write_set(write_id).write_key(), value);
+                    // leveldb::Status s = db->Put(leveldb::WriteOptions(), transaction.write_set(write_id).write_key(), value);
 
                     log_debug(logger_fp, "write_key = %s\nwrite_value = %s",
                               transaction.write_set(write_id).write_key().c_str(),
@@ -617,6 +624,7 @@ void *validation_handler(void *arg) {
                 free(ver);
                 log_debug(logger_fp, "transaction is committed.\n");
                 local_ops++;
+                total_ops++;
             } else {
                 log_debug(logger_fp, "transaction is aborted: found stale read version.\n");
             }
@@ -632,7 +640,7 @@ void *validation_handler(void *arg) {
         bq.bq_queue.pop();
         pthread_mutex_unlock(&bq.mutex);
     }
-    total_ops += local_ops;
+    // total_ops += local_ops;
     return NULL;
 }
 
@@ -643,6 +651,7 @@ class ComputeCommImpl final : public ComputeComm::Service {
         bq.bq_queue.push(*request);
         pthread_mutex_unlock(&bq.mutex);
         sem_post(&bq.full);
+        // total_ops += request->transactions_size();
 
         return Status::OK;
     }
@@ -651,11 +660,11 @@ class ComputeCommImpl final : public ComputeComm::Service {
 void run_server(const string &server_address) {
     std::filesystem::remove_all("./testdb");
 
-    options.create_if_missing = true;
-    options.error_if_exists = true;
+    // options.create_if_missing = true;
+    // options.error_if_exists = true;
     // options.write_buffer_size = 4096000000;
-    leveldb::Status s = leveldb::DB::Open(options, "./testdb", &db);
-    assert(s.ok());
+    // leveldb::Status s = leveldb::DB::Open(options, "./testdb", &db);
+    // assert(s.ok());
 
     /* start the grpc server for ComputeComm service */
     ComputeCommImpl service;
@@ -714,6 +723,8 @@ void run_server(const string &server_address) {
     }
 
     log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
+    log_info(stderr, "cache hit ratio = %f.", ((float)cache_hit.load() / (float)cache_total.load()) * 100);
+    log_info(stderr, "sstable ratio = %f.", ((float)sst_count.load() / (float)cache_total.load()) * 100);
 
     pthread_join(bg_tid, &status);
     free(ctxs);
