@@ -564,7 +564,7 @@ void *simulation_handler(void *arg) {
 
 /* validate and commit transactions (V stage) */
 bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_client, uint64_t trans_id) {
-    log_debug(logger_fp, "******validating transaction[block_id = %ld, trans_id = %d, thread_id = %d]******",
+    log_debug(logger_fp, "******validating transaction[block_id = %ld, trans_id = %ld, thread_id = %d]******",
               bq.bq_queue.front().block_id(), trans_id, ctx.thread_index);
     bool is_valid = true;
 
@@ -797,8 +797,8 @@ void run_server(const string &server_address) {
     }
 
     /* microbenchmark logics */
-    uint64_t time = benchmark_throughput();
-    // test_get_put_mix();
+    // uint64_t time = benchmark_throughput();
+    test_get_only();
 
     /* output stats */
     void *status;
@@ -806,9 +806,9 @@ void run_server(const string &server_address) {
         pthread_join(tid[i], &status);
     }
 
-    log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
-    log_info(stderr, "cache hit ratio = %f.", ((float)cache_hit.load() / (float)cache_total.load()) * 100);
-    log_info(stderr, "sstable ratio = %f.", ((float)sst_count.load() / (float)cache_total.load()) * 100);
+    // log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
+    // log_info(stderr, "cache hit ratio = %f.", ((float)cache_hit.load() / (float)cache_total.load()) * 100);
+    // log_info(stderr, "sstable ratio = %f.", ((float)sst_count.load() / (float)cache_total.load()) * 100);
 
     pthread_join(validation_manager_tid, &status);
     pthread_join(bg_tid, &status);

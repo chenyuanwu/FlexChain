@@ -217,7 +217,7 @@ void *block_formation_thread(void *arg) {
                     if (!status.ok()) {
                         log_err("block formation thread: gRPC failed with error message: %s.", status.error_message().c_str());
                     } else {
-                        log_debug(stderr, "block formation thread: block #%ld is sent to validator.", block_index);
+                        log_debug(stderr, "block formation thread: block #%d is sent to validator.", block_index);
                     }
                 }
 
@@ -231,6 +231,7 @@ void *block_formation_thread(void *arg) {
         }
     }
     total_ops = local_ops;
+    return NULL;
 }
 
 class ConsensusCommImpl final : public ConsensusComm::Service {
@@ -346,6 +347,7 @@ void *client_thread(void *arg) {
         }
     }
     free(value);
+    return NULL;
 }
 
 void *run_client(void *arg) {
@@ -371,6 +373,7 @@ void *run_client(void *arg) {
     log_info(stderr, "*******************************benchmarking completed*******************************");
     uint64_t time = (after - before).count();
     log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
+    return NULL;
 }
 
 void run_follower(const std::string &server_address) {
