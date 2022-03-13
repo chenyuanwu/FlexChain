@@ -21,6 +21,7 @@
 #include <fstream>
 #include <chrono>
 #include <random>
+#include <unordered_map>
 
 #include "blockchain.grpc.pb.h"
 

@@ -823,6 +823,7 @@ class Endorsement final :
   enum : int {
     kReadSetFieldNumber = 1,
     kWriteSetFieldNumber = 2,
+    kAdjacencyListFieldNumber = 6,
     kTransactionIdFieldNumber = 3,
     kEndorserSignatureFieldNumber = 5,
     kEndorserIdFieldNumber = 4,
@@ -862,6 +863,28 @@ class Endorsement final :
   ::WriteItem* add_write_set();
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::WriteItem >&
       write_set() const;
+
+  // repeated uint64 adjacency_list = 6;
+  int adjacency_list_size() const;
+  private:
+  int _internal_adjacency_list_size() const;
+  public:
+  void clear_adjacency_list();
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint64 _internal_adjacency_list(int index) const;
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >&
+      _internal_adjacency_list() const;
+  void _internal_add_adjacency_list(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >*
+      _internal_mutable_adjacency_list();
+  public:
+  ::PROTOBUF_NAMESPACE_ID::uint64 adjacency_list(int index) const;
+  void set_adjacency_list(int index, ::PROTOBUF_NAMESPACE_ID::uint64 value);
+  void add_adjacency_list(::PROTOBUF_NAMESPACE_ID::uint64 value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >&
+      adjacency_list() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >*
+      mutable_adjacency_list();
 
   // bytes transaction_id = 3;
   void clear_transaction_id();
@@ -909,6 +932,8 @@ class Endorsement final :
   typedef void DestructorSkippable_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::ReadItem > read_set_;
   ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::WriteItem > write_set_;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 > adjacency_list_;
+  mutable std::atomic<int> _adjacency_list_cached_byte_size_;
   ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr transaction_id_;
   ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr endorser_signature_;
   ::PROTOBUF_NAMESPACE_ID::uint64 endorser_id_;
@@ -1568,6 +1593,53 @@ inline void Endorsement::set_allocated_endorser_signature(std::string* endorser_
   endorser_signature_.SetAllocated(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), endorser_signature,
       GetArenaForAllocation());
   // @@protoc_insertion_point(field_set_allocated:Endorsement.endorser_signature)
+}
+
+// repeated uint64 adjacency_list = 6;
+inline int Endorsement::_internal_adjacency_list_size() const {
+  return adjacency_list_.size();
+}
+inline int Endorsement::adjacency_list_size() const {
+  return _internal_adjacency_list_size();
+}
+inline void Endorsement::clear_adjacency_list() {
+  adjacency_list_.Clear();
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 Endorsement::_internal_adjacency_list(int index) const {
+  return adjacency_list_.Get(index);
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint64 Endorsement::adjacency_list(int index) const {
+  // @@protoc_insertion_point(field_get:Endorsement.adjacency_list)
+  return _internal_adjacency_list(index);
+}
+inline void Endorsement::set_adjacency_list(int index, ::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  adjacency_list_.Set(index, value);
+  // @@protoc_insertion_point(field_set:Endorsement.adjacency_list)
+}
+inline void Endorsement::_internal_add_adjacency_list(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  adjacency_list_.Add(value);
+}
+inline void Endorsement::add_adjacency_list(::PROTOBUF_NAMESPACE_ID::uint64 value) {
+  _internal_add_adjacency_list(value);
+  // @@protoc_insertion_point(field_add:Endorsement.adjacency_list)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >&
+Endorsement::_internal_adjacency_list() const {
+  return adjacency_list_;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >&
+Endorsement::adjacency_list() const {
+  // @@protoc_insertion_point(field_list:Endorsement.adjacency_list)
+  return _internal_adjacency_list();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >*
+Endorsement::_internal_mutable_adjacency_list() {
+  return &adjacency_list_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField< ::PROTOBUF_NAMESPACE_ID::uint64 >*
+Endorsement::mutable_adjacency_list() {
+  // @@protoc_insertion_point(field_mutable_list:Endorsement.adjacency_list)
+  return _internal_mutable_adjacency_list();
 }
 
 // -------------------------------------------------------------------

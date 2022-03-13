@@ -118,4 +118,68 @@ class BlockQueue {
     }
 };
 
+class ValidationQueue {
+   public:
+    queue<uint64_t> vq_queue;
+    pthread_mutex_t mutex;
+    sem_t full;
+
+    ValidationQueue() {
+        pthread_mutex_init(&mutex, NULL);
+        sem_init(&full, 0, 0);
+    }
+
+    ~ValidationQueue() {
+        pthread_mutex_destroy(&mutex);
+        sem_destroy(&full);
+    }
+};
+
+class CompletionSet {
+   private:
+    set<uint64_t> C;
+    pthread_mutex_t mutex;
+
+   public:
+    CompletionSet() {
+        pthread_mutex_init(&mutex, NULL);
+    }
+
+    ~CompletionSet() {
+        pthread_mutex_destroy(&mutex);
+    }
+
+    void add(uint64_t trans_id) {
+        pthread_mutex_lock(&mutex);
+        C.insert(trans_id);
+        pthread_mutex_unlock(&mutex);
+    }
+
+    void clear() {
+        pthread_mutex_lock(&mutex);
+        C.clear();
+        pthread_mutex_unlock(&mutex);
+    }
+
+    bool find(uint64_t trans_id) {
+        bool find = false;
+        pthread_mutex_lock(&mutex);
+        if (C.find(trans_id) != C.end()) {
+            find = true;
+        }
+        pthread_mutex_unlock(&mutex);
+
+        return find;
+    }
+
+    size_t size() {
+        size_t size;
+        pthread_mutex_lock(&mutex);
+        size = C.size();
+        pthread_mutex_unlock(&mutex);
+
+        return size;
+    }
+};
+
 #endif

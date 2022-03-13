@@ -71,6 +71,8 @@ constexpr Endorsement::Endorsement(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
   : read_set_()
   , write_set_()
+  , adjacency_list_()
+  , _adjacency_list_cached_byte_size_(0)
   , transaction_id_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
   , endorser_signature_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string)
   , endorser_id_(uint64_t{0u}){}
@@ -143,6 +145,7 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_blockchain_2eproto::offsets[] 
   PROTOBUF_FIELD_OFFSET(::Endorsement, transaction_id_),
   PROTOBUF_FIELD_OFFSET(::Endorsement, endorser_id_),
   PROTOBUF_FIELD_OFFSET(::Endorsement, endorser_signature_),
+  PROTOBUF_FIELD_OFFSET(::Endorsement, adjacency_list_),
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::Block, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -158,7 +161,7 @@ static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOB
   { 14, -1, -1, sizeof(::ReadItem)},
   { 23, -1, -1, sizeof(::WriteItem)},
   { 31, -1, -1, sizeof(::Endorsement)},
-  { 42, -1, -1, sizeof(::Block)},
+  { 43, -1, -1, sizeof(::Block)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
@@ -177,24 +180,25 @@ const char descriptor_table_protodef_blockchain_2eproto[] PROTOBUF_SECTION_VARIA
   "sponse\"J\n\010ReadItem\022\020\n\010read_key\030\001 \001(\014\022\025\n\r"
   "block_seq_num\030\002 \001(\004\022\025\n\rtrans_seq_num\030\003 \001"
   "(\004\"3\n\tWriteItem\022\021\n\twrite_key\030\001 \001(\014\022\023\n\013wr"
-  "ite_value\030\002 \001(\014\"\222\001\n\013Endorsement\022\033\n\010read_"
+  "ite_value\030\002 \001(\014\"\252\001\n\013Endorsement\022\033\n\010read_"
   "set\030\001 \003(\0132\t.ReadItem\022\035\n\twrite_set\030\002 \003(\0132"
   "\n.WriteItem\022\026\n\016transaction_id\030\003 \001(\014\022\023\n\013e"
   "ndorser_id\030\004 \001(\004\022\032\n\022endorser_signature\030\005"
-  " \001(\014\"=\n\005Block\022\"\n\014transactions\030\001 \003(\0132\014.En"
-  "dorsement\022\020\n\010block_id\030\002 \001(\0042~\n\rConsensus"
-  "Comm\0223\n\016append_entries\022\016.AppendRequest\032\017"
-  ".AppendResponse\"\000\0228\n\016send_to_leader\022\014.En"
-  "dorsement\032\026.google.protobuf.Empty\"\0002D\n\013C"
-  "omputeComm\0225\n\021send_to_validator\022\006.Block\032"
-  "\026.google.protobuf.Empty\"\000b\006proto3"
+  " \001(\014\022\026\n\016adjacency_list\030\006 \003(\004\"=\n\005Block\022\"\n"
+  "\014transactions\030\001 \003(\0132\014.Endorsement\022\020\n\010blo"
+  "ck_id\030\002 \001(\0042~\n\rConsensusComm\0223\n\016append_e"
+  "ntries\022\016.AppendRequest\032\017.AppendResponse\""
+  "\000\0228\n\016send_to_leader\022\014.Endorsement\032\026.goog"
+  "le.protobuf.Empty\"\0002D\n\013ComputeComm\0225\n\021se"
+  "nd_to_validator\022\006.Block\032\026.google.protobu"
+  "f.Empty\"\000b\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_blockchain_2eproto_deps[1] = {
   &::descriptor_table_google_2fprotobuf_2fempty_2eproto,
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_blockchain_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_blockchain_2eproto = {
-  false, false, 673, descriptor_table_protodef_blockchain_2eproto, "blockchain.proto", 
+  false, false, 697, descriptor_table_protodef_blockchain_2eproto, "blockchain.proto", 
   &descriptor_table_blockchain_2eproto_once, descriptor_table_blockchain_2eproto_deps, 1, 6,
   schemas, file_default_instances, TableStruct_blockchain_2eproto::offsets,
   file_level_metadata_blockchain_2eproto, file_level_enum_descriptors_blockchain_2eproto, file_level_service_descriptors_blockchain_2eproto,
@@ -948,7 +952,8 @@ Endorsement::Endorsement(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                          bool is_message_owned)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned),
   read_set_(arena),
-  write_set_(arena) {
+  write_set_(arena),
+  adjacency_list_(arena) {
   SharedCtor();
   if (!is_message_owned) {
     RegisterArenaDtor(arena);
@@ -958,7 +963,8 @@ Endorsement::Endorsement(::PROTOBUF_NAMESPACE_ID::Arena* arena,
 Endorsement::Endorsement(const Endorsement& from)
   : ::PROTOBUF_NAMESPACE_ID::Message(),
       read_set_(from.read_set_),
-      write_set_(from.write_set_) {
+      write_set_(from.write_set_),
+      adjacency_list_(from.adjacency_list_) {
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   transaction_id_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
   if (!from._internal_transaction_id().empty()) {
@@ -1011,6 +1017,7 @@ void Endorsement::Clear() {
 
   read_set_.Clear();
   write_set_.Clear();
+  adjacency_list_.Clear();
   transaction_id_.ClearToEmpty();
   endorser_signature_.ClearToEmpty();
   endorser_id_ = uint64_t{0u};
@@ -1071,6 +1078,17 @@ const char* Endorsement::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID
         if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 42)) {
           auto str = _internal_mutable_endorser_signature();
           ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      // repeated uint64 adjacency_list = 6;
+      case 6:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 50)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedUInt64Parser(_internal_mutable_adjacency_list(), ptr, ctx);
+          CHK_(ptr);
+        } else if (static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 48) {
+          _internal_add_adjacency_list(::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr));
           CHK_(ptr);
         } else
           goto handle_unusual;
@@ -1138,6 +1156,15 @@ failure:
         5, this->_internal_endorser_signature(), target);
   }
 
+  // repeated uint64 adjacency_list = 6;
+  {
+    int byte_size = _adjacency_list_cached_byte_size_.load(std::memory_order_relaxed);
+    if (byte_size > 0) {
+      target = stream->WriteUInt64Packed(
+          6, _internal_adjacency_list(), byte_size, target);
+    }
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -1166,6 +1193,21 @@ size_t Endorsement::ByteSizeLong() const {
   for (const auto& msg : this->write_set_) {
     total_size +=
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(msg);
+  }
+
+  // repeated uint64 adjacency_list = 6;
+  {
+    size_t data_size = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      UInt64Size(this->adjacency_list_);
+    if (data_size > 0) {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::Int32Size(
+            static_cast<::PROTOBUF_NAMESPACE_ID::int32>(data_size));
+    }
+    int cached_size = ::PROTOBUF_NAMESPACE_ID::internal::ToCachedSize(data_size);
+    _adjacency_list_cached_byte_size_.store(cached_size,
+                                    std::memory_order_relaxed);
+    total_size += data_size;
   }
 
   // bytes transaction_id = 3;
@@ -1211,6 +1253,7 @@ void Endorsement::MergeFrom(const Endorsement& from) {
 
   read_set_.MergeFrom(from.read_set_);
   write_set_.MergeFrom(from.write_set_);
+  adjacency_list_.MergeFrom(from.adjacency_list_);
   if (!from._internal_transaction_id().empty()) {
     _internal_set_transaction_id(from._internal_transaction_id());
   }
@@ -1241,6 +1284,7 @@ void Endorsement::InternalSwap(Endorsement* other) {
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   read_set_.InternalSwap(&other->read_set_);
   write_set_.InternalSwap(&other->write_set_);
+  adjacency_list_.InternalSwap(&other->adjacency_list_);
   ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
       &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
       &transaction_id_, lhs_arena,

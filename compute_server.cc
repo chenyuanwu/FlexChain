@@ -12,6 +12,8 @@
 
 struct CConfigInfo c_config_info;
 struct ComputeIBInfo c_ib_info;
+CompletionSet C;
+ValidationQueue vq;
 BlockQueue bq;
 RequestQueue rq;
 DataCache datacache;
@@ -561,73 +563,76 @@ void *simulation_handler(void *arg) {
 }
 
 /* validate and commit transactions (V stage) */
+bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_client, uint64_t trans_id) {
+    log_debug(logger_fp, "******validating transaction[block_id = %ld, trans_id = %d, thread_id = %d]******",
+              bq.bq_queue.front().block_id(), trans_id, ctx.thread_index);
+    bool is_valid = true;
+
+    const Endorsement &transaction = bq.bq_queue.front().transactions(trans_id);
+    for (int read_id = 0; read_id < transaction.read_set_size(); read_id++) {
+        uint64_t curr_version_blockid = 0;
+        uint64_t curr_version_transid = 0;
+
+        string value;
+        value = kv_get(ctx, storage_client, transaction.read_set(read_id).read_key());
+        // leveldb::Status s = db->Get(leveldb::ReadOptions(), transaction.read_set(read_id).read_key(), &value);
+        memcpy(&curr_version_blockid, value.c_str(), sizeof(uint64_t));
+        memcpy(&curr_version_transid, value.c_str() + sizeof(uint64_t), sizeof(uint64_t));
+
+        log_debug(logger_fp,
+                  "read_key = %s\nstored_read_version = [block_id = %ld, trans_id = %ld]\n"
+                  "current_key_version = [block_id = %ld, trans_id = %ld]",
+                  transaction.read_set(read_id).read_key().c_str(),
+                  transaction.read_set(read_id).block_seq_num(),
+                  transaction.read_set(read_id).trans_seq_num(),
+                  curr_version_blockid, curr_version_transid);
+
+        if (curr_version_blockid != transaction.read_set(read_id).block_seq_num() ||
+            curr_version_transid != transaction.read_set(read_id).trans_seq_num()) {
+            is_valid = false;
+            break;
+        }
+    }
+
+    if (is_valid) {
+        uint64_t curr_version_blockid = bq.bq_queue.front().block_id();
+        char *ver = (char *)malloc(2 * sizeof(uint64_t));
+        for (int write_id = 0; write_id < transaction.write_set_size(); write_id++) {
+            uint64_t curr_version_transid = trans_id;
+
+            bzero(ver, 2 * sizeof(uint64_t));
+            memcpy(ver, &curr_version_blockid, sizeof(uint64_t));
+            memcpy(ver + sizeof(uint64_t), &curr_version_transid, sizeof(uint64_t));
+            string value(ver, 2 * sizeof(uint64_t));
+            value += transaction.write_set(write_id).write_value();
+
+            int ret = kv_put(ctx, transaction.write_set(write_id).write_key(), value);
+            // leveldb::Status s = db->Put(leveldb::WriteOptions(), transaction.write_set(write_id).write_key(), value);
+
+            log_debug(logger_fp, "write_key = %s\nwrite_value = %s",
+                      transaction.write_set(write_id).write_key().c_str(),
+                      transaction.write_set(write_id).write_value().c_str());
+        }
+        free(ver);
+        log_debug(logger_fp, "transaction is committed.\n");
+        total_ops++;
+    } else {
+        log_debug(logger_fp, "transaction is aborted: found stale read version.\n");
+    }
+    return is_valid;
+}
+
 void *validation_handler(void *arg) {
     struct ThreadContext ctx = *(struct ThreadContext *)arg;
     /* set up grpc client for storage server */
     KVStableClient storage_client(storage_channel_ptr);
     string block;
 
-    long local_ops = 0;
     while (!end_flag) {
         sem_wait(&bq.full);
 
         for (int trans_id = 0; trans_id < bq.bq_queue.front().transactions_size(); trans_id++) {
-            log_debug(logger_fp, "******validating transaction[block_id = %ld, trans_id = %d]******",
-                      bq.bq_queue.front().block_id(), trans_id);
-            bool is_valid = true;
-
-            const Endorsement &transaction = bq.bq_queue.front().transactions(trans_id);
-            for (int read_id = 0; read_id < transaction.read_set_size(); read_id++) {
-                uint64_t curr_version_blockid = 0;
-                uint64_t curr_version_transid = 0;
-
-                string value;
-                value = kv_get(ctx, storage_client, transaction.read_set(read_id).read_key());
-                // leveldb::Status s = db->Get(leveldb::ReadOptions(), transaction.read_set(read_id).read_key(), &value);
-                memcpy(&curr_version_blockid, value.c_str(), sizeof(uint64_t));
-                memcpy(&curr_version_transid, value.c_str() + sizeof(uint64_t), sizeof(uint64_t));
-
-                log_debug(logger_fp,
-                          "read_key = %s\nstored_read_version = [block_id = %ld, trans_id = %ld]\n"
-                          "current_key_version = [block_id = %ld, trans_id = %ld]",
-                          transaction.read_set(read_id).read_key().c_str(),
-                          transaction.read_set(read_id).block_seq_num(),
-                          transaction.read_set(read_id).trans_seq_num(),
-                          curr_version_blockid, curr_version_transid);
-
-                if (curr_version_blockid != transaction.read_set(read_id).block_seq_num() ||
-                    curr_version_transid != transaction.read_set(read_id).trans_seq_num()) {
-                    is_valid = false;
-                    break;
-                }
-            }
-
-            if (is_valid) {
-                uint64_t curr_version_blockid = bq.bq_queue.front().block_id();
-                char *ver = (char *)malloc(2 * sizeof(uint64_t));
-                for (int write_id = 0; write_id < transaction.write_set_size(); write_id++) {
-                    uint64_t curr_version_transid = trans_id;
-
-                    bzero(ver, 2 * sizeof(uint64_t));
-                    memcpy(ver, &curr_version_blockid, sizeof(uint64_t));
-                    memcpy(ver + sizeof(uint64_t), &curr_version_transid, sizeof(uint64_t));
-                    string value(ver, 2 * sizeof(uint64_t));
-                    value += transaction.write_set(write_id).write_value();
-
-                    int ret = kv_put(ctx, transaction.write_set(write_id).write_key(), value);
-                    // leveldb::Status s = db->Put(leveldb::WriteOptions(), transaction.write_set(write_id).write_key(), value);
-
-                    log_debug(logger_fp, "write_key = %s\nwrite_value = %s",
-                              transaction.write_set(write_id).write_key().c_str(),
-                              transaction.write_set(write_id).write_value().c_str());
-                }
-                free(ver);
-                log_debug(logger_fp, "transaction is committed.\n");
-                local_ops++;
-                total_ops++;
-            } else {
-                log_debug(logger_fp, "transaction is aborted: found stale read version.\n");
-            }
+            validate_transaction(ctx, storage_client, trans_id);
         }
 
         /* store the block with its bit mask in remote block store */
@@ -641,6 +646,84 @@ void *validation_handler(void *arg) {
         pthread_mutex_unlock(&bq.mutex);
     }
     // total_ops += local_ops;
+    return NULL;
+}
+
+void *parallel_validation_worker(void *arg) {
+    struct ThreadContext ctx = *(struct ThreadContext *)arg;
+    /* set up grpc client for storage server */
+    KVStableClient storage_client(storage_channel_ptr);
+
+    while (!end_flag) {
+        sem_wait(&vq.full);
+
+        pthread_mutex_lock(&vq.mutex);
+        uint64_t trans_id = vq.vq_queue.front();
+        vq.vq_queue.pop();
+        pthread_mutex_unlock(&vq.mutex);
+
+        validate_transaction(ctx, storage_client, trans_id);
+
+        // add this transaction to C
+        C.add(trans_id);
+    }    
+
+    return NULL;
+}
+
+void *parallel_validation_manager(void *arg) {
+    /* set up grpc client for storage server */
+    KVStableClient storage_client(storage_channel_ptr);
+    string block;
+    set<uint64_t> W;
+
+    while (!end_flag) {
+        sem_wait(&bq.full);
+
+        W.clear();
+        C.clear();
+        for (int trans_id = 0; trans_id < bq.bq_queue.front().transactions_size(); trans_id++) {
+            W.insert(trans_id);
+        }
+
+        while (!W.empty()) {
+            for (auto it = W.begin(); it != W.end(); it++) {
+                bool all_pred_in_c = true;
+
+                for (int i = 0; i < bq.bq_queue.front().transactions(*it).adjacency_list_size(); i++) {
+                    uint64_t pred_id = bq.bq_queue.front().transactions(*it).adjacency_list(i);
+                    if (C.find(pred_id)) {
+                        all_pred_in_c = false;
+                        break;
+                    }
+                }
+
+                if (all_pred_in_c) {
+                    W.erase(it);
+
+                    /* trigger parallel validation worker for this transaction */
+                    pthread_mutex_lock(&vq.mutex);
+                    vq.vq_queue.push(*it);
+                    pthread_mutex_unlock(&vq.mutex);
+                    sem_post(&vq.full);
+                }
+            }
+        }
+
+        while (C.size() != bq.bq_queue.front().transactions_size())
+            ;
+
+        /* store the block with its bit mask in remote block store */
+        if (!bq.bq_queue.front().SerializeToString(&block)) {
+            log_err("validator: failed to serialize block.");
+        }
+        storage_client.write_blocks(block);
+
+        pthread_mutex_lock(&bq.mutex);
+        bq.bq_queue.pop();
+        pthread_mutex_unlock(&bq.mutex);
+    }
+
     return NULL;
 }
 
@@ -683,9 +766,11 @@ void run_server(const string &server_address) {
 
     pthread_t bg_tid;
     pthread_create(&bg_tid, NULL, background_handler, NULL);
+    pthread_t validation_manager_tid;
+    pthread_create(&validation_manager_tid, NULL, parallel_validation_manager, NULL);
 
     int num_threads = c_config_info.num_qps_per_server;
-    int num_sim_threads = c_config_info.num_qps_per_server - 1;
+    int num_sim_threads = c_config_info.num_sim_threads;
     pthread_t tid[num_threads];
     struct ThreadContext *ctxs = (struct ThreadContext *)calloc(num_threads, sizeof(struct ThreadContext));
     for (int i = 0; i < num_threads; i++) {
@@ -696,19 +781,18 @@ void run_server(const string &server_address) {
         ctxs[i].m_cq = c_ib_info.cq[i];
         if (i < num_sim_threads) {
             pthread_create(&tid[i], NULL, simulation_handler, &ctxs[i]);
-
-            /* stick thread to a core for better performance */
-            int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
-            int core_id = i % num_cores;
-            cpu_set_t cpuset;
-            CPU_ZERO(&cpuset);
-            CPU_SET(core_id, &cpuset);
-            int ret = pthread_setaffinity_np(tid[i], sizeof(cpu_set_t), &cpuset);
-            if (ret) {
-                log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
-            }
         } else {
-            pthread_create(&tid[i], NULL, validation_handler, &ctxs[i]);
+            pthread_create(&tid[i], NULL, parallel_validation_worker, &ctxs[i]);
+        }
+        /* stick thread to a core for better performance */
+        int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
+        int core_id = i % num_cores;
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(core_id, &cpuset);
+        int ret = pthread_setaffinity_np(tid[i], sizeof(cpu_set_t), &cpuset);
+        if (ret) {
+            log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
         }
     }
 
@@ -726,6 +810,7 @@ void run_server(const string &server_address) {
     log_info(stderr, "cache hit ratio = %f.", ((float)cache_hit.load() / (float)cache_total.load()) * 100);
     log_info(stderr, "sstable ratio = %f.", ((float)sst_count.load() / (float)cache_total.load()) * 100);
 
+    pthread_join(validation_manager_tid, &status);
     pthread_join(bg_tid, &status);
     free(ctxs);
 }
@@ -832,6 +917,8 @@ int main(int argc, char *argv[]) {
         std::stringstream sstream(tmp[1]);
         if (tmp[0] == "num_qps_per_server") {
             sstream >> c_config_info.num_qps_per_server;
+        } else if (tmp[0] == "num_sim_threads") {
+            sstream >> c_config_info.num_sim_threads;
         } else if (tmp[0] == "data_msg_size") {
             sstream >> c_config_info.data_msg_size;
         } else if (tmp[0] == "data_cache_size") {

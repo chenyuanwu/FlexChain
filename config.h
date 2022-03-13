@@ -41,6 +41,7 @@ struct MConfigInfo {
 
 struct CConfigInfo {
     int num_qps_per_server;
+    int num_sim_threads;
     size_t data_msg_size;
     size_t data_cache_size;
     size_t metadata_cache_size;

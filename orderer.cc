@@ -58,12 +58,75 @@ void *log_replication_thread(void *arg) {
     }
 }
 
+bool has_rw_conflicts(const Endorsement &target_trans, const Endorsement &current_trans) {
+    unordered_map<string, int> key_to_index;
+    int index = 0;
+    bool has_conflicts = false;
+
+    for (int i = 0; i < target_trans.read_set_size(); i++) {
+        key_to_index[target_trans.read_set(i).read_key()] = index++;
+    }
+
+    if (!key_to_index.empty()) {
+        for (int i = 0; i < current_trans.write_set_size(); i++) {
+            if (key_to_index.find(current_trans.write_set(i).write_key()) != key_to_index.end()) {
+                has_conflicts = true;
+                break;
+            }
+        }
+    }
+
+    return has_conflicts;
+}
+
+bool has_ww_conflicts(const Endorsement &target_trans, const Endorsement &current_trans) {
+    unordered_map<string, int> key_to_index;
+    int index = 0;
+    bool has_conflicts = false;
+
+    for (int i = 0; i < target_trans.write_set_size(); i++) {
+        key_to_index[target_trans.write_set(i).write_key()] = index++;
+    }
+
+    if (!key_to_index.empty()) {
+        for (int i = 0; i < current_trans.write_set_size(); i++) {
+            if (key_to_index.find(current_trans.write_set(i).write_key()) != key_to_index.end()) {
+                has_conflicts = true;
+                break;
+            }
+        }
+    }
+
+    return has_conflicts;
+}
+
+bool has_wr_conflicts(const Endorsement &target_trans, const Endorsement &current_trans) {
+    unordered_map<string, int> key_to_index;
+    int index = 0;
+    bool has_conflicts = false;
+
+    for (int i = 0; i < target_trans.write_set_size(); i++) {
+        key_to_index[target_trans.write_set(i).write_key()] = index++;
+    }
+
+    if (!key_to_index.empty()) {
+        for (int i = 0; i < current_trans.read_set_size(); i++) {
+            if (key_to_index.find(current_trans.read_set(i).read_key()) != key_to_index.end()) {
+                has_conflicts = true;
+                break;
+            }
+        }
+    }
+
+    return has_conflicts;
+}
+
 void *block_formation_thread(void *arg) {
     log_info(stderr, "Block formation thread is running.");
     /* set up grpc channels to validators */
     shared_ptr<grpc::Channel> channel;
     unique_ptr<ComputeComm::Stub> stub;
-    
+
     if (role == LEADER) {
         string validator_grpc_endpoint;
         fstream fs;
@@ -123,6 +186,7 @@ void *block_formation_thread(void *arg) {
             string serialized_transaction(entry_ptr, size);
             free(entry_ptr);
 
+            /* build dependency graph */
             log_debug(stderr, "[block_id = %d, trans_id = %d]: added transaction to block.", block_index, trans_index);
             Endorsement *transaction = block.add_transactions();
             if (!transaction->ParseFromString(serialized_transaction)) {
@@ -130,6 +194,15 @@ void *block_formation_thread(void *arg) {
             }
             local_ops++;
 
+            transaction->clear_adjacency_list();
+            for (int target_index = 0; target_index < trans_index; target_index++) {
+                /* check read-write write-write write-read conflict */
+                if (has_rw_conflicts(block.transactions(target_index), block.transactions(trans_index)) ||
+                    has_ww_conflicts(block.transactions(target_index), block.transactions(trans_index)) ||
+                    has_wr_conflicts(block.transactions(target_index), block.transactions(trans_index))) {
+                        transaction->add_adjacency_list(target_index);
+                }
+            }
             trans_index++;
 
             if (curr_size >= max_block_size) {
