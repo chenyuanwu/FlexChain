@@ -29,6 +29,7 @@ atomic<long> total_ops = 0;
 atomic<long> cache_hit = 0;
 atomic<long> sst_count = 0;
 atomic<long> cache_total = 0;
+atomic<long> abort_count = 0;
 
 leveldb::DB *db;
 leveldb::Options options;
@@ -563,12 +564,11 @@ void *simulation_handler(void *arg) {
 }
 
 /* validate and commit transactions (V stage) */
-bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_client, uint64_t trans_id) {
-    log_debug(logger_fp, "******validating transaction[block_id = %ld, trans_id = %ld, thread_id = %d]******",
-              bq.bq_queue.front().block_id(), trans_id, ctx.thread_index);
+bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_client, uint64_t trans_id, Endorsement &transaction) {
+    // log_debug(stderr, "******validating transaction[block_id = %ld, trans_id = %ld, thread_id = %d]******",
+    //           bq.bq_queue.front().block_id(), trans_id, ctx.thread_index);
     bool is_valid = true;
 
-    const Endorsement &transaction = bq.bq_queue.front().transactions(trans_id);
     for (int read_id = 0; read_id < transaction.read_set_size(); read_id++) {
         uint64_t curr_version_blockid = 0;
         uint64_t curr_version_transid = 0;
@@ -579,13 +579,13 @@ bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_cli
         memcpy(&curr_version_blockid, value.c_str(), sizeof(uint64_t));
         memcpy(&curr_version_transid, value.c_str() + sizeof(uint64_t), sizeof(uint64_t));
 
-        log_debug(logger_fp,
-                  "read_key = %s\nstored_read_version = [block_id = %ld, trans_id = %ld]\n"
-                  "current_key_version = [block_id = %ld, trans_id = %ld]",
-                  transaction.read_set(read_id).read_key().c_str(),
-                  transaction.read_set(read_id).block_seq_num(),
-                  transaction.read_set(read_id).trans_seq_num(),
-                  curr_version_blockid, curr_version_transid);
+        // log_debug(logger_fp,
+        //           "read_key = %s\nstored_read_version = [block_id = %ld, trans_id = %ld]\n"
+        //           "current_key_version = [block_id = %ld, trans_id = %ld]",
+        //           transaction.read_set(read_id).read_key().c_str(),
+        //           transaction.read_set(read_id).block_seq_num(),
+        //           transaction.read_set(read_id).trans_seq_num(),
+        //           curr_version_blockid, curr_version_transid);
 
         if (curr_version_blockid != transaction.read_set(read_id).block_seq_num() ||
             curr_version_transid != transaction.read_set(read_id).trans_seq_num()) {
@@ -609,15 +609,16 @@ bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_cli
             int ret = kv_put(ctx, transaction.write_set(write_id).write_key(), value);
             // leveldb::Status s = db->Put(leveldb::WriteOptions(), transaction.write_set(write_id).write_key(), value);
 
-            log_debug(logger_fp, "write_key = %s\nwrite_value = %s",
-                      transaction.write_set(write_id).write_key().c_str(),
-                      transaction.write_set(write_id).write_value().c_str());
+            // log_debug(logger_fp, "write_key = %s\nwrite_value = %s",
+            //           transaction.write_set(write_id).write_key().c_str(),
+            //           transaction.write_set(write_id).write_value().c_str());
         }
         free(ver);
-        log_debug(logger_fp, "transaction is committed.\n");
+        // log_debug(logger_fp, "transaction is committed.\n");
         total_ops++;
     } else {
-        log_debug(logger_fp, "transaction is aborted: found stale read version.\n");
+        abort_count++;
+        // log_debug(logger_fp, "transaction is aborted: found stale read version.\n");
     }
     return is_valid;
 }
@@ -632,7 +633,7 @@ void *validation_handler(void *arg) {
         sem_wait(&bq.full);
 
         for (int trans_id = 0; trans_id < bq.bq_queue.front().transactions_size(); trans_id++) {
-            validate_transaction(ctx, storage_client, trans_id);
+            // validate_transaction(ctx, storage_client, trans_id);
         }
 
         /* store the block with its bit mask in remote block store */
@@ -658,11 +659,13 @@ void *parallel_validation_worker(void *arg) {
         sem_wait(&vq.full);
 
         pthread_mutex_lock(&vq.mutex);
-        uint64_t trans_id = vq.vq_queue.front();
-        vq.vq_queue.pop();
+        uint64_t trans_id = vq.id_queue.front();
+        Endorsement transaction = vq.trans_queue.front();
+        vq.id_queue.pop();
+        vq.trans_queue.pop();
         pthread_mutex_unlock(&vq.mutex);
 
-        validate_transaction(ctx, storage_client, trans_id);
+        validate_transaction(ctx, storage_client, trans_id, transaction);
 
         // add this transaction to C
         C.add(trans_id);
@@ -674,54 +677,63 @@ void *parallel_validation_worker(void *arg) {
 void *parallel_validation_manager(void *arg) {
     /* set up grpc client for storage server */
     KVStableClient storage_client(storage_channel_ptr);
-    string block;
+    string serialised_block;
     set<uint64_t> W;
 
     while (!end_flag) {
         sem_wait(&bq.full);
+        pthread_mutex_lock(&bq.mutex);
+        Block block = bq.bq_queue.front();
+        bq.bq_queue.pop();
+        pthread_mutex_unlock(&bq.mutex);
 
         W.clear();
         C.clear();
-        for (int trans_id = 0; trans_id < bq.bq_queue.front().transactions_size(); trans_id++) {
+        for (int trans_id = 0; trans_id < block.transactions_size(); trans_id++) {
             W.insert(trans_id);
         }
 
         while (!W.empty()) {
-            for (auto it = W.begin(); it != W.end(); it++) {
+            for (auto it = W.begin(); it != W.end(); ) {
+                uint64_t trans_id = *it;
                 bool all_pred_in_c = true;
 
-                for (int i = 0; i < bq.bq_queue.front().transactions(*it).adjacency_list_size(); i++) {
-                    uint64_t pred_id = bq.bq_queue.front().transactions(*it).adjacency_list(i);
-                    if (C.find(pred_id)) {
+                // if (block.transactions(trans_id).adjacency_list_size() > 0) {
+                //     log_info(stderr, "[block_id = %ld, trans_id = %ld] size of adjacency list = %d.",
+                //             block.block_id(), trans_id, block.transactions(trans_id).adjacency_list_size());
+                // }
+
+                for (int i = 0; i < block.transactions(trans_id).adjacency_list_size(); i++) {
+                    uint64_t pred_id = block.transactions(trans_id).adjacency_list(i);
+                    if (!C.find(pred_id)) {
                         all_pred_in_c = false;
                         break;
                     }
                 }
 
                 if (all_pred_in_c) {
-                    W.erase(it);
+                    it = W.erase(it);
 
                     /* trigger parallel validation worker for this transaction */
                     pthread_mutex_lock(&vq.mutex);
-                    vq.vq_queue.push(*it);
+                    vq.id_queue.push(trans_id);
+                    vq.trans_queue.emplace(block.transactions(trans_id));
                     pthread_mutex_unlock(&vq.mutex);
                     sem_post(&vq.full);
+                } else {
+                    it++;
                 }
             }
         }
 
-        while (C.size() != bq.bq_queue.front().transactions_size())
+        while (C.size() != block.transactions_size())
             ;
 
         /* store the block with its bit mask in remote block store */
-        if (!bq.bq_queue.front().SerializeToString(&block)) {
+        if (!block.SerializeToString(&serialised_block)) {
             log_err("validator: failed to serialize block.");
         }
-        storage_client.write_blocks(block);
-
-        pthread_mutex_lock(&bq.mutex);
-        bq.bq_queue.pop();
-        pthread_mutex_unlock(&bq.mutex);
+        storage_client.write_blocks(serialised_block);
     }
 
     return NULL;
@@ -768,6 +780,13 @@ void run_server(const string &server_address) {
     pthread_create(&bg_tid, NULL, background_handler, NULL);
     pthread_t validation_manager_tid;
     pthread_create(&validation_manager_tid, NULL, parallel_validation_manager, NULL);
+    // cpu_set_t cpuset;
+    // CPU_ZERO(&cpuset);
+    // CPU_SET(0, &cpuset);
+    // int ret = pthread_setaffinity_np(validation_manager_tid, sizeof(cpu_set_t), &cpuset);
+    // if (ret) {
+    //     log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
+    // }
 
     int num_threads = c_config_info.num_qps_per_server;
     int num_sim_threads = c_config_info.num_sim_threads;
@@ -783,6 +802,7 @@ void run_server(const string &server_address) {
             pthread_create(&tid[i], NULL, simulation_handler, &ctxs[i]);
         } else {
             pthread_create(&tid[i], NULL, parallel_validation_worker, &ctxs[i]);
+            // pthread_create(&tid[i], NULL, validation_handler, &ctxs[i]);
         }
         /* stick thread to a core for better performance */
         int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
@@ -797,20 +817,21 @@ void run_server(const string &server_address) {
     }
 
     /* microbenchmark logics */
-    // uint64_t time = benchmark_throughput();
-    test_get_only();
+    uint64_t time = benchmark_throughput();
+    // test_get_put_mix();
 
     /* output stats */
     void *status;
-    for (int i = 0; i < num_threads; i++) {
-        pthread_join(tid[i], &status);
-    }
+    // for (int i = 0; i < num_threads; i++) {
+    //     pthread_join(tid[i], &status);
+    // }
 
-    // log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
+    log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
+    log_info(stderr, "abort rate = %f.", ((float)abort_count.load() / ((float)total_ops.load() + (float)abort_count.load())) * 100);
     // log_info(stderr, "cache hit ratio = %f.", ((float)cache_hit.load() / (float)cache_total.load()) * 100);
     // log_info(stderr, "sstable ratio = %f.", ((float)sst_count.load() / (float)cache_total.load()) * 100);
 
-    pthread_join(validation_manager_tid, &status);
+    // pthread_join(validation_manager_tid, &status);
     pthread_join(bg_tid, &status);
     free(ctxs);
 }

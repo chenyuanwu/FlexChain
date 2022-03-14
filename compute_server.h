@@ -120,7 +120,8 @@ class BlockQueue {
 
 class ValidationQueue {
    public:
-    queue<uint64_t> vq_queue;
+    queue<uint64_t> id_queue;
+    queue<Endorsement> trans_queue;
     pthread_mutex_t mutex;
     sem_t full;
 
@@ -174,9 +175,9 @@ class CompletionSet {
 
     size_t size() {
         size_t size;
-        pthread_mutex_lock(&mutex);
+        // pthread_mutex_lock(&mutex);
         size = C.size();
-        pthread_mutex_unlock(&mutex);
+        // pthread_mutex_unlock(&mutex);
 
         return size;
     }

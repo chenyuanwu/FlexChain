@@ -172,7 +172,7 @@ int zipf(double alpha, int n) {
 void *client_thread(void *arg) {
     int key_num = *(int *)arg;
     int trans_per_interval = 2000;
-    int interval = 30000;
+    int interval = 50000;
 
     default_random_engine generator;
     uniform_int_distribution<int> distribution(0, key_num - 1);
