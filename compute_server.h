@@ -122,6 +122,7 @@ class ValidationQueue {
    public:
     queue<uint64_t> id_queue;
     queue<Endorsement> trans_queue;
+    uint64_t curr_block_id;
     pthread_mutex_t mutex;
     sem_t full;
 

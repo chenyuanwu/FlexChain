@@ -564,9 +564,11 @@ void *simulation_handler(void *arg) {
 }
 
 /* validate and commit transactions (V stage) */
-bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_client, uint64_t trans_id, Endorsement &transaction) {
+bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_client, 
+                          uint64_t block_id, uint64_t trans_id, const Endorsement &transaction) {
     // log_debug(stderr, "******validating transaction[block_id = %ld, trans_id = %ld, thread_id = %d]******",
-    //           bq.bq_queue.front().block_id(), trans_id, ctx.thread_index);
+    //           block_id, trans_id, ctx.thread_index);
+    usleep(5000);
     bool is_valid = true;
 
     for (int read_id = 0; read_id < transaction.read_set_size(); read_id++) {
@@ -595,7 +597,7 @@ bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_cli
     }
 
     if (is_valid) {
-        uint64_t curr_version_blockid = bq.bq_queue.front().block_id();
+        uint64_t curr_version_blockid = block_id;
         char *ver = (char *)malloc(2 * sizeof(uint64_t));
         for (int write_id = 0; write_id < transaction.write_set_size(); write_id++) {
             uint64_t curr_version_transid = trans_id;
@@ -627,26 +629,26 @@ void *validation_handler(void *arg) {
     struct ThreadContext ctx = *(struct ThreadContext *)arg;
     /* set up grpc client for storage server */
     KVStableClient storage_client(storage_channel_ptr);
-    string block;
+    string serialised_block;
 
     while (!end_flag) {
         sem_wait(&bq.full);
+        pthread_mutex_lock(&bq.mutex);
+        Block block = bq.bq_queue.front();
+        bq.bq_queue.pop();
+        pthread_mutex_unlock(&bq.mutex);
 
-        for (int trans_id = 0; trans_id < bq.bq_queue.front().transactions_size(); trans_id++) {
-            // validate_transaction(ctx, storage_client, trans_id);
+        for (int trans_id = 0; trans_id < block.transactions_size(); trans_id++) {
+            validate_transaction(ctx, storage_client, block.block_id(), trans_id, block.transactions(trans_id));
         }
 
         /* store the block with its bit mask in remote block store */
-        if (!bq.bq_queue.front().SerializeToString(&block)) {
+        if (!block.SerializeToString(&serialised_block)) {
             log_err("validator: failed to serialize block.");
         }
-        storage_client.write_blocks(block);
-
-        pthread_mutex_lock(&bq.mutex);
-        bq.bq_queue.pop();
-        pthread_mutex_unlock(&bq.mutex);
+        storage_client.write_blocks(serialised_block);
     }
-    // total_ops += local_ops;
+
     return NULL;
 }
 
@@ -661,11 +663,12 @@ void *parallel_validation_worker(void *arg) {
         pthread_mutex_lock(&vq.mutex);
         uint64_t trans_id = vq.id_queue.front();
         Endorsement transaction = vq.trans_queue.front();
+        uint64_t curr_block_id = vq.curr_block_id;
         vq.id_queue.pop();
         vq.trans_queue.pop();
         pthread_mutex_unlock(&vq.mutex);
 
-        validate_transaction(ctx, storage_client, trans_id, transaction);
+        validate_transaction(ctx, storage_client, curr_block_id, trans_id, transaction);
 
         // add this transaction to C
         C.add(trans_id);
@@ -716,6 +719,7 @@ void *parallel_validation_manager(void *arg) {
 
                     /* trigger parallel validation worker for this transaction */
                     pthread_mutex_lock(&vq.mutex);
+                    vq.curr_block_id = block.block_id();
                     vq.id_queue.push(trans_id);
                     vq.trans_queue.emplace(block.transactions(trans_id));
                     pthread_mutex_unlock(&vq.mutex);
@@ -780,13 +784,13 @@ void run_server(const string &server_address) {
     pthread_create(&bg_tid, NULL, background_handler, NULL);
     pthread_t validation_manager_tid;
     pthread_create(&validation_manager_tid, NULL, parallel_validation_manager, NULL);
-    // cpu_set_t cpuset;
-    // CPU_ZERO(&cpuset);
-    // CPU_SET(0, &cpuset);
-    // int ret = pthread_setaffinity_np(validation_manager_tid, sizeof(cpu_set_t), &cpuset);
-    // if (ret) {
-    //     log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
-    // }
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(0, &cpuset);
+    int ret = pthread_setaffinity_np(validation_manager_tid, sizeof(cpu_set_t), &cpuset);
+    if (ret) {
+        log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
+    }
 
     int num_threads = c_config_info.num_qps_per_server;
     int num_sim_threads = c_config_info.num_sim_threads;
