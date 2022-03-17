@@ -441,12 +441,15 @@ string s_kv_get(struct ThreadContext &ctx, KVStableClient &client, const string 
     read_item->set_trans_seq_num(read_version_transid);
 
     /* the value returned to smart contracts should not contain version numbers */
-    value.erase(0, 128);
+    value.erase(0, 16);
+    uint64_t data;
+    memcpy(&data, value.c_str(), sizeof(uint64_t));
 
     log_debug(logger_fp,
               "s_kv_get[thread_index = %d, key = %s]:\n"
-              "version [block_id = %ld, trans_id = %ld] is stored in read set.\n",
-              ctx.thread_index, key.c_str(), read_item->block_seq_num(), read_item->trans_seq_num());
+              "version [block_id = %ld, trans_id = %ld] is stored in read set.\n"
+              "value [%ld] is returned to smart contract.\n",
+              ctx.thread_index, key.c_str(), read_item->block_seq_num(), read_item->trans_seq_num(), data);
 
     return value;
 }
@@ -517,6 +520,10 @@ void *simulation_handler(void *arg) {
             //               ctx.thread_index, proposal.key.c_str());
             // }
 
+            uint64_t put_value;
+            memcpy(&put_value, proposal.value.c_str(), sizeof(uint64_t));
+            log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\nput_value = %ld\n",
+                      ctx.thread_index, proposal.key.c_str(), put_value);
             bzero(buf, c_config_info.data_msg_size);
             strcpy(buf, proposal.value.c_str());
             size_t meta_data_size = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + proposal.key.length() + 2 * sizeof(uint64_t);
@@ -540,8 +547,10 @@ void *simulation_handler(void *arg) {
                 //     ret = 1;
                 // }
                 if (!ret) {
-                    log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\nput_value = %s\n",
-                              ctx.thread_index, proposal.key.c_str(), proposal.value.c_str());
+                    // uint64_t put_value;
+                    // memcpy(&put_value, proposal.value.c_str(), sizeof(uint64_t));
+                    // log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\nput_value = %ld\n",
+                    //           ctx.thread_index, proposal.key.c_str(), put_value);
                 } else {
                     log_debug(logger_fp, "thread_index = #%d\trequest_type = PUT\nput_key = %s\noperation failed...\n",
                               ctx.thread_index, proposal.key.c_str());
@@ -550,6 +559,22 @@ void *simulation_handler(void *arg) {
             } else {
                 s_kv_put(proposal.key, proposal.value, endorsement);
             }
+        } else if (proposal.type == Request::Type::KMEANS) {
+            int key_num = 1000;
+            default_random_engine generator;
+            uniform_int_distribution<int> distribution(0, key_num - 1);
+
+            vector<int> A;
+            int num_keys_per_trans = 20;
+            for (int i = 0; i < num_keys_per_trans; i++) {
+                int random_number = distribution(generator);
+                string key = "key_" + to_string(random_number);
+                string value = s_kv_get(ctx, storage_client, key, endorsement);
+                uint64_t data;
+                memcpy(&data, value.c_str(), sizeof(uint64_t));
+                A.push_back(data);
+            }
+            kmeans(A, 5);
         }
 
         /* send the generated endorsement to the client/orderer */
@@ -564,11 +589,10 @@ void *simulation_handler(void *arg) {
 }
 
 /* validate and commit transactions (V stage) */
-bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_client, 
+bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_client,
                           uint64_t block_id, uint64_t trans_id, const Endorsement &transaction) {
-    // log_debug(stderr, "******validating transaction[block_id = %ld, trans_id = %ld, thread_id = %d]******",
-    //           block_id, trans_id, ctx.thread_index);
-    usleep(5000);
+    log_debug(logger_fp, "******validating transaction[block_id = %ld, trans_id = %ld, thread_id = %d]******",
+              block_id, trans_id, ctx.thread_index);
     bool is_valid = true;
 
     for (int read_id = 0; read_id < transaction.read_set_size(); read_id++) {
@@ -672,7 +696,7 @@ void *parallel_validation_worker(void *arg) {
 
         // add this transaction to C
         C.add(trans_id);
-    }    
+    }
 
     return NULL;
 }
@@ -697,7 +721,7 @@ void *parallel_validation_manager(void *arg) {
         }
 
         while (!W.empty()) {
-            for (auto it = W.begin(); it != W.end(); ) {
+            for (auto it = W.begin(); it != W.end();) {
                 uint64_t trans_id = *it;
                 bool all_pred_in_c = true;
 
@@ -782,15 +806,15 @@ void run_server(const string &server_address) {
 
     pthread_t bg_tid;
     pthread_create(&bg_tid, NULL, background_handler, NULL);
-    pthread_t validation_manager_tid;
-    pthread_create(&validation_manager_tid, NULL, parallel_validation_manager, NULL);
-    cpu_set_t cpuset;
-    CPU_ZERO(&cpuset);
-    CPU_SET(0, &cpuset);
-    int ret = pthread_setaffinity_np(validation_manager_tid, sizeof(cpu_set_t), &cpuset);
-    if (ret) {
-        log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
-    }
+    // pthread_t validation_manager_tid;
+    // pthread_create(&validation_manager_tid, NULL, parallel_validation_manager, NULL);
+    // cpu_set_t cpuset;
+    // CPU_ZERO(&cpuset);
+    // CPU_SET(0, &cpuset);
+    // int ret = pthread_setaffinity_np(validation_manager_tid, sizeof(cpu_set_t), &cpuset);
+    // if (ret) {
+    //     log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
+    // }
 
     int num_threads = c_config_info.num_qps_per_server;
     int num_sim_threads = c_config_info.num_sim_threads;
@@ -805,8 +829,8 @@ void run_server(const string &server_address) {
         if (i < num_sim_threads) {
             pthread_create(&tid[i], NULL, simulation_handler, &ctxs[i]);
         } else {
-            pthread_create(&tid[i], NULL, parallel_validation_worker, &ctxs[i]);
-            // pthread_create(&tid[i], NULL, validation_handler, &ctxs[i]);
+            // pthread_create(&tid[i], NULL, parallel_validation_worker, &ctxs[i]);
+            pthread_create(&tid[i], NULL, validation_handler, &ctxs[i]);
         }
         /* stick thread to a core for better performance */
         int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
@@ -821,8 +845,8 @@ void run_server(const string &server_address) {
     }
 
     /* microbenchmark logics */
-    uint64_t time = benchmark_throughput();
-    // test_get_put_mix();
+    // uint64_t time = benchmark_throughput();
+    test_get_only();
 
     /* output stats */
     void *status;
@@ -830,8 +854,8 @@ void run_server(const string &server_address) {
     //     pthread_join(tid[i], &status);
     // }
 
-    log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
-    log_info(stderr, "abort rate = %f.", ((float)abort_count.load() / ((float)total_ops.load() + (float)abort_count.load())) * 100);
+    // log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
+    // log_info(stderr, "abort rate = %f.", ((float)abort_count.load() / ((float)total_ops.load() + (float)abort_count.load())) * 100);
     // log_info(stderr, "cache hit ratio = %f.", ((float)cache_hit.load() / (float)cache_total.load()) * 100);
     // log_info(stderr, "sstable ratio = %f.", ((float)sst_count.load() / (float)cache_total.load()) * 100);
 

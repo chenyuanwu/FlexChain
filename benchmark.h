@@ -8,11 +8,13 @@
 #include <stdio.h>
 #include <stdlib.h>  
 #include <unistd.h>
+#include <math.h>
 
 #include <chrono>
 #include <queue>
 #include <random>
 #include <string>
+#include <unordered_set>
 
 using namespace std;
 
@@ -23,6 +25,7 @@ struct Request {
     enum Type {
         GET,
         PUT,
+        KMEANS
     };
     Type type;
     string key;
@@ -52,5 +55,6 @@ int test_get_put_mix();
 int64_t benchmark_throughput();
 int zipf(double alpha, int n);
 double rand_val(int seed);
+void kmeans(vector<int> &A, int K);
 
 #endif

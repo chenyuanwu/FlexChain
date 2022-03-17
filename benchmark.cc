@@ -7,12 +7,30 @@ extern volatile int end_flag;
 
 /* functionality tests */
 int test_get_only() {
+    default_random_engine generator;
+    uniform_int_distribution<int> distribution(0, 50000);
+
     for (int i = 0; i < 1000; i++) {
+        // struct Request req;
+        // req.type = Request::Type::PUT;
+        // req.key = "key_" + to_string(i);
+        // req.value = "value_" + to_string(i);
+        // req.is_prep = true;
+        // pthread_mutex_lock(&rq.mutex);
+        // rq.rq_queue.push(req);
+        // pthread_mutex_unlock(&rq.mutex);
+        // sem_post(&rq.full);
+
         struct Request req;
         req.type = Request::Type::PUT;
         req.key = "key_" + to_string(i);
-        req.value = "value_" + to_string(i);
+        uint64_t val_number = distribution(generator);
+        char *buf = (char *)malloc(sizeof(uint64_t));
+        memcpy(buf, &val_number, sizeof(uint64_t));
+        req.value.assign(buf, sizeof(uint64_t));
         req.is_prep = true;
+        free(buf);
+
         pthread_mutex_lock(&rq.mutex);
         rq.rq_queue.push(req);
         pthread_mutex_unlock(&rq.mutex);
@@ -21,10 +39,18 @@ int test_get_only() {
 
     sleep(2);
 
-    for (int i = 1000 - 1; i >= 0; i--) {
+    for (int i = 100 - 1; i >= 0; i--) {
+        // struct Request req;
+        // req.type = Request::Type::GET;
+        // req.key = "key_" + to_string(i);
+        // req.is_prep = false;
+        // pthread_mutex_lock(&rq.mutex);
+        // rq.rq_queue.push(req);
+        // pthread_mutex_unlock(&rq.mutex);
+        // sem_post(&rq.full);
+
         struct Request req;
-        req.type = Request::Type::GET;
-        req.key = "key_" + to_string(i);
+        req.type = Request::Type::KMEANS;
         req.is_prep = false;
         pthread_mutex_lock(&rq.mutex);
         rq.rq_queue.push(req);
@@ -169,35 +195,128 @@ int zipf(double alpha, int n) {
     return (zipf_value);
 }
 
+int find_cluster_id(vector<float> &centers, int target_point) {
+    assert(centers.size() > 0);
+    float min_distance = abs(centers[0] - target_point);
+    int cluster_id = 0;
+
+    for (int id = 0; id < centers.size(); id++) {
+        float cur_distance;
+        cur_distance = abs(centers[id] - target_point);
+
+        if (cur_distance < min_distance) {
+            cluster_id = id;
+        }
+    }
+
+    return cluster_id;
+}
+
+void kmeans(vector<int> &A, int K) {
+    // init
+    vector<float> centers;
+    unordered_set<int> dedup;
+    while (centers.size() < K) {
+        int rid = rand() % A.size();
+        if (dedup.find(A[rid]) == dedup.end()) {
+            centers.push_back(A[rid]);
+            dedup.insert(A[rid]);
+        }
+    }
+    dedup.clear();
+    vector<int> cluster(A.size(), -1);
+    float last_err = 0;
+    for (int epoch = 0; epoch < 1000; epoch++) {
+        // assigning to cluster
+        for (int i = 0; i < A.size(); i++) {
+            int cid = find_cluster_id(centers, A[i]);
+            cluster[i] = cid;
+        }
+        // recalculate centers per cluster
+        vector<int> cnt(K, 0);
+        vector<int> sum(K, 0);
+        float err = 0;
+        for (int i = 0; i < A.size(); i++) {
+            int cid = cluster[i];
+            cnt[cid]++;
+            sum[cid] += A[i];
+            // error
+            err += abs(static_cast<float>(A[i]) - centers[cid]);
+        }
+        float delta = abs(last_err - err);
+        if (delta < 0.1) {
+            break;
+        }
+        last_err = err;
+        // assign new centers
+        for (int i = 0; i < K; i++) {
+            centers[i] = (static_cast<float>(sum[i]) / cnt[i]);
+        }
+    }
+    log_info(stderr, "kmeans computation for %ld nodes completed.", A.size());
+    // for (int i = 0; i < K; i++) {
+    //     log_debug(stderr, "Cluster Center %d : %f", i, centers[i]);
+    //     log_debug(stderr, "Cluster Elements : ");
+    //     for (int j = 0; j < cluster.size(); j++) {
+    //         if (cluster[j] == i) {
+    //             log_debug(stderr, "%d", A[j]);
+    //         }
+    //     }
+    //     log_debug(stderr, "******************************************");
+    // }
+}
+
 void *client_thread(void *arg) {
     int key_num = *(int *)arg;
-    int trans_per_interval = 2000;
+    int trans_per_interval = 1000;
     int interval = 50000;
 
     default_random_engine generator;
     uniform_int_distribution<int> distribution(0, key_num - 1);
+    bernoulli_distribution b_distribution(0.95);
     rand_val(1);
 
     while (!end_flag) {
         usleep(interval);
 
         for (int i = 0; i < trans_per_interval; i++) {
-            int number = distribution(generator);
-            // int number = zipf(2.0, key_num);
-            struct Request req;
-            req.type = Request::Type::GET;
-            req.key = "key_" + to_string(number);
-            req.is_prep = false;
-            pthread_mutex_lock(&rq.mutex);
-            rq.rq_queue.push(req);
-            pthread_mutex_unlock(&rq.mutex);
-            sem_post(&rq.full);
+            /* YCSB workload */
+            // int number = distribution(generator);
+            // // int number = zipf(2.0, key_num);
+            // struct Request req;
+            // req.type = Request::Type::GET;
+            // req.key = "key_" + to_string(number);
+            // req.is_prep = false;
+            // pthread_mutex_lock(&rq.mutex);
+            // rq.rq_queue.push(req);
+            // pthread_mutex_unlock(&rq.mutex);
+            // sem_post(&rq.full);
 
-            number = distribution(generator);
-            // number = zipf(2.0, key_num);
-            req.type = Request::Type::PUT;
-            req.key = "key_" + to_string(number);
-            req.value = "value_" + to_string(number);
+            // number = distribution(generator);
+            // // number = zipf(2.0, key_num);
+            // req.type = Request::Type::PUT;
+            // req.key = "key_" + to_string(number);
+            // req.value = "value_" + to_string(number);
+            // req.is_prep = false;
+            // pthread_mutex_lock(&rq.mutex);
+            // rq.rq_queue.push(req);
+            // pthread_mutex_unlock(&rq.mutex);
+            // sem_post(&rq.full);
+
+            /* machine learning workload */
+            struct Request req;
+            if (b_distribution(generator)) {
+                req.type = Request::Type::KMEANS;
+            } else {
+                req.type = Request::Type::PUT;
+                int key_number = distribution(generator);
+                req.key = "key_" + to_string(key_number);
+                uint64_t val_number = distribution(generator);
+                char *buf = (char *)malloc(sizeof(uint64_t));
+                memcpy(buf, &val_number, sizeof(uint64_t));
+                req.value = string(buf, sizeof(uint64_t));
+                free(buf);
+            }
             req.is_prep = false;
             pthread_mutex_lock(&rq.mutex);
             rq.rq_queue.push(req);
@@ -210,11 +329,29 @@ void *client_thread(void *arg) {
 
 int64_t benchmark_throughput() {
     int key_num = 400000;
+    default_random_engine generator;
+    uniform_int_distribution<int> distribution(0, key_num - 1);
+    
     for (int i = key_num; i >= 0; i--) {
+        /* prepopulate - YSCB workload */
+        // struct Request req;
+        // req.type = Request::Type::PUT;
+        // req.key = "key_" + to_string(i);
+        // req.value = "value_" + to_string(i);
+        // req.is_prep = true;
+        // pthread_mutex_lock(&rq.mutex);
+        // rq.rq_queue.push(req);
+        // pthread_mutex_unlock(&rq.mutex);
+        // sem_post(&rq.full);
+
+        /* prepopulate - machine learning workload */
         struct Request req;
         req.type = Request::Type::PUT;
         req.key = "key_" + to_string(i);
-        req.value = "value_" + to_string(i);
+        uint64_t val_number = distribution(generator);
+        char *buf = (char *)malloc(sizeof(uint64_t));
+        memcpy(buf, &val_number, sizeof(uint64_t));
+        req.value = string(buf, sizeof(uint64_t));
         req.is_prep = true;
         pthread_mutex_lock(&rq.mutex);
         rq.rq_queue.push(req);
