@@ -226,7 +226,7 @@ void kmeans(vector<int> &A, int K) {
     dedup.clear();
     vector<int> cluster(A.size(), -1);
     float last_err = 0;
-    for (int epoch = 0; epoch < 1000; epoch++) {
+    for (int epoch = 0; epoch < 100; epoch++) {
         // assigning to cluster
         for (int i = 0; i < A.size(); i++) {
             int cid = find_cluster_id(centers, A[i]);
@@ -253,7 +253,7 @@ void kmeans(vector<int> &A, int K) {
             centers[i] = (static_cast<float>(sum[i]) / cnt[i]);
         }
     }
-    log_info(stderr, "kmeans computation for %ld nodes completed.", A.size());
+    // log_info(stderr, "kmeans computation for %ld nodes completed.", A.size());
     // for (int i = 0; i < K; i++) {
     //     log_debug(stderr, "Cluster Center %d : %f", i, centers[i]);
     //     log_debug(stderr, "Cluster Elements : ");

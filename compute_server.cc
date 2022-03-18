@@ -560,12 +560,12 @@ void *simulation_handler(void *arg) {
                 s_kv_put(proposal.key, proposal.value, endorsement);
             }
         } else if (proposal.type == Request::Type::KMEANS) {
-            int key_num = 1000;
+            int key_num = 400000;
             default_random_engine generator;
             uniform_int_distribution<int> distribution(0, key_num - 1);
 
             vector<int> A;
-            int num_keys_per_trans = 20;
+            int num_keys_per_trans = 50;
             for (int i = 0; i < num_keys_per_trans; i++) {
                 int random_number = distribution(generator);
                 string key = "key_" + to_string(random_number);
@@ -845,8 +845,8 @@ void run_server(const string &server_address) {
     }
 
     /* microbenchmark logics */
-    // uint64_t time = benchmark_throughput();
-    test_get_only();
+    uint64_t time = benchmark_throughput();
+    // test_get_only();
 
     /* output stats */
     void *status;
@@ -854,8 +854,8 @@ void run_server(const string &server_address) {
     //     pthread_join(tid[i], &status);
     // }
 
-    // log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
-    // log_info(stderr, "abort rate = %f.", ((float)abort_count.load() / ((float)total_ops.load() + (float)abort_count.load())) * 100);
+    log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
+    log_info(stderr, "abort rate = %f.", ((float)abort_count.load() / ((float)total_ops.load() + (float)abort_count.load())) * 100);
     // log_info(stderr, "cache hit ratio = %f.", ((float)cache_hit.load() / (float)cache_total.load()) * 100);
     // log_info(stderr, "sstable ratio = %f.", ((float)sst_count.load() / (float)cache_total.load()) * 100);
 
