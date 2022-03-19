@@ -1,25 +1,25 @@
 #ifndef BENCHMARK_H
 #define BENCHMARK_H
 
-#include <assert.h>  
-#include <math.h>   
+#include <assert.h>
+#include <math.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <stdio.h>
-#include <stdlib.h>  
+#include <stdlib.h>
 #include <unistd.h>
-#include <math.h>
 
 #include <chrono>
 #include <queue>
 #include <random>
 #include <string>
 #include <unordered_set>
+#include <atomic>
 
 using namespace std;
 
-#define FALSE 0  
-#define TRUE 1   
+#define FALSE 0
+#define TRUE 1
 
 struct Request {
     enum Type {
@@ -52,7 +52,8 @@ class RequestQueue {
 
 int test_get_only();
 int test_get_put_mix();
-int64_t benchmark_throughput();
+void prepopulate();
+int64_t benchmark_throughput(bool is_validator);
 int zipf(double alpha, int n);
 double rand_val(int seed);
 void kmeans(vector<int> &A, int K);

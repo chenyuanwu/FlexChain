@@ -7,7 +7,13 @@ service ConsensusComm {
 }
 
 service ComputeComm {
-    rpc send_to_validator (Block) returns (google.protobuf.Empty) {}
+    rpc send_to_validator (Block) returns (google.protobuf.Empty) {} // used by orderer nodes
+    rpc invalidate_cn (InvalidationRequest) returns (google.protobuf.Empty) {} 
+    rpc start_benchmarking (Notification) returns (google.protobuf.Empty) {}
+}
+
+message Notification {
+
 }
 
 message AppendRequest {
@@ -43,4 +49,8 @@ message Endorsement {
 message Block {
     repeated Endorsement transactions = 1;
     uint64 block_id = 2;
+}
+
+message InvalidationRequest {
+    string key_to_inval = 1;
 }

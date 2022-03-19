@@ -101,6 +101,18 @@ class KVStableClient {
     unique_ptr<KVStable::Stub> stub_;
 };
 
+class ComputeCommClient {
+   public:
+    ComputeCommClient(std::shared_ptr<Channel> channel)
+        : stub_(ComputeComm::NewStub(channel)) {}
+
+    int invalidate_cn(const string& key);
+    void start_benchmarking();
+
+   private:
+    unique_ptr<ComputeComm::Stub> stub_;
+};
+
 class BlockQueue {
    public:
     queue<Block> bq_queue;

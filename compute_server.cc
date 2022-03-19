@@ -20,6 +20,7 @@ DataCache datacache;
 MetaDataCache metadatacache;
 shared_ptr<grpc::Channel> storage_channel_ptr;
 shared_ptr<grpc::Channel> orderer_channel_ptr;
+vector<shared_ptr<grpc::Channel>> compute_channel_ptrs;
 pthread_mutex_t logger_lock;
 FILE *logger_fp;
 volatile int end_flag = 0;
@@ -30,6 +31,8 @@ atomic<long> cache_hit = 0;
 atomic<long> sst_count = 0;
 atomic<long> cache_total = 0;
 atomic<long> abort_count = 0;
+atomic_bool prepopulation_completed(false);
+atomic_bool warmup_completed(false);
 
 leveldb::DB *db;
 leveldb::Options options;
@@ -192,7 +195,7 @@ string kv_get(struct ThreadContext &ctx, KVStableClient &client, const string &k
 }
 
 /* put to the disaggregated key value store */
-int kv_put(struct ThreadContext &ctx, const string &key, const string &value) {
+int kv_put(struct ThreadContext &ctx, vector<ComputeCommClient> &compute_clients, const string &key, const string &value) {
     /* allocate a remote buffer */
     char *ctrl_buf = c_ib_info.ib_control_buf + ctx.thread_index * c_config_info.ctrl_msg_size;
     bzero(ctrl_buf, c_config_info.ctrl_msg_size);
@@ -279,7 +282,9 @@ int kv_put(struct ThreadContext &ctx, const string &key, const string &value) {
     log_debug(stderr, "kv_put[thread_index = %d, key = %s]: local caches are updated.", ctx.thread_index, key.c_str());
 
     /* invalidate all CNs' caches including itself */
-    //
+    for (int i = 0; i < compute_clients.size(); i++) {
+        compute_clients[i].invalidate_cn(key);
+    }
 
     return 0;
 }
@@ -471,6 +476,8 @@ void *simulation_handler(void *arg) {
     KVStableClient storage_client(storage_channel_ptr);
     /* set up grpc client for ordering service */
     unique_ptr<ConsensusComm::Stub> orderer_stub(ConsensusComm::NewStub(orderer_channel_ptr));
+    /* set up grpc client for other compute servers (dummy clients here) */
+    vector<ComputeCommClient> compute_clients;
 
     char *buf = (char *)malloc(c_config_info.data_msg_size);
     long local_ops = 0;
@@ -540,7 +547,7 @@ void *simulation_handler(void *arg) {
                 string value(ver, 2 * sizeof(uint64_t));
                 value += proposal.value;
 
-                int ret = kv_put(ctx, proposal.key, value);
+                int ret = kv_put(ctx, compute_clients, proposal.key, value);
                 // leveldb::Status s = db->Put(leveldb::WriteOptions(), proposal.key, value);
                 // int ret = 0;
                 // if (!s.ok()) {
@@ -589,7 +596,7 @@ void *simulation_handler(void *arg) {
 }
 
 /* validate and commit transactions (V stage) */
-bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_client,
+bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_client, vector<ComputeCommClient> &compute_clients,
                           uint64_t block_id, uint64_t trans_id, const Endorsement &transaction) {
     log_debug(logger_fp, "******validating transaction[block_id = %ld, trans_id = %ld, thread_id = %d]******",
               block_id, trans_id, ctx.thread_index);
@@ -632,7 +639,7 @@ bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_cli
             string value(ver, 2 * sizeof(uint64_t));
             value += transaction.write_set(write_id).write_value();
 
-            int ret = kv_put(ctx, transaction.write_set(write_id).write_key(), value);
+            int ret = kv_put(ctx, compute_clients, transaction.write_set(write_id).write_key(), value);
             // leveldb::Status s = db->Put(leveldb::WriteOptions(), transaction.write_set(write_id).write_key(), value);
 
             // log_debug(logger_fp, "write_key = %s\nwrite_value = %s",
@@ -641,9 +648,13 @@ bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_cli
         }
         free(ver);
         // log_debug(logger_fp, "transaction is committed.\n");
-        total_ops++;
+        if (warmup_completed) {
+            total_ops++;
+        }
     } else {
-        abort_count++;
+        if (warmup_completed) {
+            abort_count++;
+        }
         // log_debug(logger_fp, "transaction is aborted: found stale read version.\n");
     }
     return is_valid;
@@ -654,6 +665,11 @@ void *validation_handler(void *arg) {
     /* set up grpc client for storage server */
     KVStableClient storage_client(storage_channel_ptr);
     string serialised_block;
+    /* set up grpc client for other compute servers */
+    vector<ComputeCommClient> compute_clients;
+    for (int i = 0; i < compute_channel_ptrs.size(); i++) {
+        compute_clients.emplace_back(compute_channel_ptrs[i]);
+    }
 
     while (!end_flag) {
         sem_wait(&bq.full);
@@ -663,7 +679,7 @@ void *validation_handler(void *arg) {
         pthread_mutex_unlock(&bq.mutex);
 
         for (int trans_id = 0; trans_id < block.transactions_size(); trans_id++) {
-            validate_transaction(ctx, storage_client, block.block_id(), trans_id, block.transactions(trans_id));
+            validate_transaction(ctx, storage_client, compute_clients, block.block_id(), trans_id, block.transactions(trans_id));
         }
 
         /* store the block with its bit mask in remote block store */
@@ -680,6 +696,11 @@ void *parallel_validation_worker(void *arg) {
     struct ThreadContext ctx = *(struct ThreadContext *)arg;
     /* set up grpc client for storage server */
     KVStableClient storage_client(storage_channel_ptr);
+    /* set up grpc client for other compute servers */
+    vector<ComputeCommClient> compute_clients;
+    for (int i = 0; i < compute_channel_ptrs.size(); i++) {
+        compute_clients.emplace_back(compute_channel_ptrs[i]);
+    }
 
     while (!end_flag) {
         sem_wait(&vq.full);
@@ -692,7 +713,7 @@ void *parallel_validation_worker(void *arg) {
         vq.trans_queue.pop();
         pthread_mutex_unlock(&vq.mutex);
 
-        validate_transaction(ctx, storage_client, curr_block_id, trans_id, transaction);
+        validate_transaction(ctx, storage_client, compute_clients, curr_block_id, trans_id, transaction);
 
         // add this transaction to C
         C.add(trans_id);
@@ -778,9 +799,42 @@ class ComputeCommImpl final : public ComputeComm::Service {
 
         return Status::OK;
     }
+
+    Status invalidate_cn(ServerContext *context, const InvalidationRequest *request, google::protobuf::Empty *response) override {
+        string key = request->key_to_inval();
+        pthread_mutex_lock(&metadatacache.hashtable_lock);
+        uint64_t r_addr = 0;
+        auto meta_it = metadatacache.key_hashtable.find(key);
+        if (meta_it != metadatacache.key_hashtable.end()) {
+            r_addr = meta_it->second->ptr_next;
+            metadatacache.lru_list.erase(meta_it->second);
+            metadatacache.key_hashtable.erase(meta_it);
+        }
+        pthread_mutex_unlock(&metadatacache.hashtable_lock);
+
+        if (r_addr != 0) {
+            pthread_mutex_lock(&datacache.hashtable_lock);
+            auto it = datacache.addr_hashtable.find(r_addr);
+            if (it != datacache.addr_hashtable.end()) {
+                uint64_t l_addr = it->second->l_addr;
+                datacache.lru_list.erase(it->second);
+                datacache.addr_hashtable.erase(it);
+                datacache.free_addrs.push(l_addr);
+            }
+            pthread_mutex_unlock(&datacache.hashtable_lock);
+        }
+
+        return Status::OK;
+    }
+
+    Status start_benchmarking(ServerContext *context, const Notification *request, google::protobuf::Empty *response) override {
+        prepopulation_completed = true;
+
+        return Status::OK;
+    }
 };
 
-void run_server(const string &server_address) {
+void run_server(const string &server_address, bool is_validator) {
     std::filesystem::remove_all("./testdb");
 
     // options.create_if_missing = true;
@@ -797,6 +851,12 @@ void run_server(const string &server_address) {
     std::unique_ptr<Server> server(builder.BuildAndStart());
     log_info(stderr, "RPC server listening on %s", server_address.c_str());
 
+    /* set up grpc client for other compute servers */
+    vector<ComputeCommClient> compute_clients;
+    for (int i = 0; i < compute_channel_ptrs.size(); i++) {
+        compute_clients.emplace_back(compute_channel_ptrs[i]);
+    }
+
     /* init local caches and spawn the thread pool */
     total_ops = 0;
     for (int offset = 0; offset < c_config_info.data_cache_size; offset += c_config_info.data_msg_size) {
@@ -806,14 +866,16 @@ void run_server(const string &server_address) {
 
     pthread_t bg_tid;
     pthread_create(&bg_tid, NULL, background_handler, NULL);
-    // pthread_t validation_manager_tid;
-    // pthread_create(&validation_manager_tid, NULL, parallel_validation_manager, NULL);
-    // cpu_set_t cpuset;
-    // CPU_ZERO(&cpuset);
-    // CPU_SET(0, &cpuset);
-    // int ret = pthread_setaffinity_np(validation_manager_tid, sizeof(cpu_set_t), &cpuset);
-    // if (ret) {
-    //     log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
+    // if (is_validator) {
+    //     pthread_t validation_manager_tid;
+    //     pthread_create(&validation_manager_tid, NULL, parallel_validation_manager, NULL);
+    //     cpu_set_t cpuset;
+    //     CPU_ZERO(&cpuset);
+    //     CPU_SET(0, &cpuset);
+    //     int ret = pthread_setaffinity_np(validation_manager_tid, sizeof(cpu_set_t), &cpuset);
+    //     if (ret) {
+    //         log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
+    //     }
     // }
 
     int num_threads = c_config_info.num_qps_per_server;
@@ -845,7 +907,17 @@ void run_server(const string &server_address) {
     }
 
     /* microbenchmark logics */
-    uint64_t time = benchmark_throughput();
+    if (is_validator) {
+        prepopulate();
+        for (int i = 0; i < compute_clients.size(); i++) {
+            compute_clients[i].start_benchmarking();
+        }
+        prepopulation_completed = true;
+    }
+    while (!prepopulation_completed)
+        ;
+
+    uint64_t time = benchmark_throughput(is_validator);
     // test_get_only();
 
     /* output stats */
@@ -923,6 +995,26 @@ int KVStableClient::write_blocks(const string &block) {
     return 0;
 }
 
+int ComputeCommClient::invalidate_cn(const string &key) {
+    ClientContext context;
+    InvalidationRequest inval;
+    google::protobuf::Empty rsp;
+
+    inval.set_key_to_inval(key);
+
+    stub_->async()->invalidate_cn(&context, &inval, &rsp, [](Status s) {});
+
+    return 0;
+}
+
+void ComputeCommClient::start_benchmarking() {
+    ClientContext context;
+    Notification notifiction;
+    google::protobuf::Empty rsp;
+
+    Status status = stub_->start_benchmarking(&context, notifiction, &rsp);
+}
+
 int main(int argc, char *argv[]) {
     /* set config info */
     c_config_info.num_qps_per_server = 64;
@@ -934,17 +1026,22 @@ int main(int argc, char *argv[]) {
     c_config_info.sock_port = 4711;                    // socket port used by memory server to init RDMA connection
     c_config_info.sock_addr = "127.0.0.1";             // ip address of memory server
 
+    bool is_validator = false;
     int opt;
     string configfile = "config/compute.config";
     string server_address;
-    while ((opt = getopt(argc, argv, "ha:c:")) != -1) {
+    while ((opt = getopt(argc, argv, "hva:c:")) != -1) {
         switch (opt) {
             case 'h':
                 fprintf(stderr, "compute server usage:\n");
                 fprintf(stderr, "\t-h: print this help message\n");
+                fprintf(stderr, "\t-v: only if specified, act as the validator node\n");
                 fprintf(stderr, "\t-a <server_ip:server_port>: the listening addr of grpc server\n");
                 fprintf(stderr, "\t-c <path_to_config_file>: path to the configuration file\n");
                 exit(0);
+            case 'v':
+                is_validator = true;
+                break;
             case 'a':
                 server_address = std::string(optarg);
                 break;
@@ -986,6 +1083,10 @@ int main(int argc, char *argv[]) {
             c_config_info.storage_grpc_endpoint = tmp[1];
         } else if (tmp[0] == "orderer_grpc_endpoint") {
             c_config_info.orderer_grpc_endpoint = tmp[1];
+        } else if (tmp[0] == "compute_grpc_endpoint") {
+            if (is_validator) {
+                compute_channel_ptrs.push_back(grpc::CreateChannel(tmp[1], grpc::InsecureChannelCredentials()));
+            }
         } else {
             fprintf(stderr, "Invalid config parameter `%s`.\n", tmp[0].c_str());
             exit(1);
@@ -1005,5 +1106,5 @@ int main(int argc, char *argv[]) {
     /* set up RDMA connection with the memory server */
     compute_setup_ib(c_config_info, c_ib_info);
 
-    run_server(server_address);
+    run_server(server_address, is_validator);
 }

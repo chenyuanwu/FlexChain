@@ -125,6 +125,8 @@ ConsensusComm::Service::~Service() {
 
 static const char* ComputeComm_method_names[] = {
   "/ComputeComm/send_to_validator",
+  "/ComputeComm/invalidate_cn",
+  "/ComputeComm/start_benchmarking",
 };
 
 std::unique_ptr< ComputeComm::Stub> ComputeComm::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -135,6 +137,8 @@ std::unique_ptr< ComputeComm::Stub> ComputeComm::NewStub(const std::shared_ptr< 
 
 ComputeComm::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options)
   : channel_(channel), rpcmethod_send_to_validator_(ComputeComm_method_names[0], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_invalidate_cn_(ComputeComm_method_names[1], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_start_benchmarking_(ComputeComm_method_names[2], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
 
 ::grpc::Status ComputeComm::Stub::send_to_validator(::grpc::ClientContext* context, const ::Block& request, ::google::protobuf::Empty* response) {
@@ -160,6 +164,52 @@ void ComputeComm::Stub::async::send_to_validator(::grpc::ClientContext* context,
   return result;
 }
 
+::grpc::Status ComputeComm::Stub::invalidate_cn(::grpc::ClientContext* context, const ::InvalidationRequest& request, ::google::protobuf::Empty* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::InvalidationRequest, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_invalidate_cn_, context, request, response);
+}
+
+void ComputeComm::Stub::async::invalidate_cn(::grpc::ClientContext* context, const ::InvalidationRequest* request, ::google::protobuf::Empty* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::InvalidationRequest, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_invalidate_cn_, context, request, response, std::move(f));
+}
+
+void ComputeComm::Stub::async::invalidate_cn(::grpc::ClientContext* context, const ::InvalidationRequest* request, ::google::protobuf::Empty* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_invalidate_cn_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* ComputeComm::Stub::PrepareAsyncinvalidate_cnRaw(::grpc::ClientContext* context, const ::InvalidationRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::google::protobuf::Empty, ::InvalidationRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_invalidate_cn_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* ComputeComm::Stub::Asyncinvalidate_cnRaw(::grpc::ClientContext* context, const ::InvalidationRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncinvalidate_cnRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status ComputeComm::Stub::start_benchmarking(::grpc::ClientContext* context, const ::Notification& request, ::google::protobuf::Empty* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::Notification, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_start_benchmarking_, context, request, response);
+}
+
+void ComputeComm::Stub::async::start_benchmarking(::grpc::ClientContext* context, const ::Notification* request, ::google::protobuf::Empty* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::Notification, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_start_benchmarking_, context, request, response, std::move(f));
+}
+
+void ComputeComm::Stub::async::start_benchmarking(::grpc::ClientContext* context, const ::Notification* request, ::google::protobuf::Empty* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_start_benchmarking_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* ComputeComm::Stub::PrepareAsyncstart_benchmarkingRaw(::grpc::ClientContext* context, const ::Notification& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::google::protobuf::Empty, ::Notification, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_start_benchmarking_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::google::protobuf::Empty>* ComputeComm::Stub::Asyncstart_benchmarkingRaw(::grpc::ClientContext* context, const ::Notification& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncstart_benchmarkingRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
 ComputeComm::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       ComputeComm_method_names[0],
@@ -171,12 +221,46 @@ ComputeComm::Service::Service() {
              ::google::protobuf::Empty* resp) {
                return service->send_to_validator(ctx, req, resp);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      ComputeComm_method_names[1],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< ComputeComm::Service, ::InvalidationRequest, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](ComputeComm::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::InvalidationRequest* req,
+             ::google::protobuf::Empty* resp) {
+               return service->invalidate_cn(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      ComputeComm_method_names[2],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< ComputeComm::Service, ::Notification, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](ComputeComm::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::Notification* req,
+             ::google::protobuf::Empty* resp) {
+               return service->start_benchmarking(ctx, req, resp);
+             }, this)));
 }
 
 ComputeComm::Service::~Service() {
 }
 
 ::grpc::Status ComputeComm::Service::send_to_validator(::grpc::ServerContext* context, const ::Block* request, ::google::protobuf::Empty* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status ComputeComm::Service::invalidate_cn(::grpc::ServerContext* context, const ::InvalidationRequest* request, ::google::protobuf::Empty* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status ComputeComm::Service::start_benchmarking(::grpc::ServerContext* context, const ::Notification* request, ::google::protobuf::Empty* response) {
   (void) context;
   (void) request;
   (void) response;

@@ -16,6 +16,17 @@
 #include <google/protobuf/port_def.inc>
 
 PROTOBUF_PRAGMA_INIT_SEG
+constexpr Notification::Notification(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized){}
+struct NotificationDefaultTypeInternal {
+  constexpr NotificationDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~NotificationDefaultTypeInternal() {}
+  union {
+    Notification _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT NotificationDefaultTypeInternal _Notification_default_instance_;
 constexpr AppendRequest::AppendRequest(
   ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
   : log_entries_()
@@ -98,11 +109,29 @@ struct BlockDefaultTypeInternal {
   };
 };
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT BlockDefaultTypeInternal _Block_default_instance_;
-static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_blockchain_2eproto[6];
+constexpr InvalidationRequest::InvalidationRequest(
+  ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized)
+  : key_to_inval_(&::PROTOBUF_NAMESPACE_ID::internal::fixed_address_empty_string){}
+struct InvalidationRequestDefaultTypeInternal {
+  constexpr InvalidationRequestDefaultTypeInternal()
+    : _instance(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized{}) {}
+  ~InvalidationRequestDefaultTypeInternal() {}
+  union {
+    InvalidationRequest _instance;
+  };
+};
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT InvalidationRequestDefaultTypeInternal _InvalidationRequest_default_instance_;
+static ::PROTOBUF_NAMESPACE_ID::Metadata file_level_metadata_blockchain_2eproto[8];
 static constexpr ::PROTOBUF_NAMESPACE_ID::EnumDescriptor const** file_level_enum_descriptors_blockchain_2eproto = nullptr;
 static constexpr ::PROTOBUF_NAMESPACE_ID::ServiceDescriptor const** file_level_service_descriptors_blockchain_2eproto = nullptr;
 
 const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_blockchain_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
+  ~0u,  // no _has_bits_
+  PROTOBUF_FIELD_OFFSET(::Notification, _internal_metadata_),
+  ~0u,  // no _extensions_
+  ~0u,  // no _oneof_case_
+  ~0u,  // no _weak_field_map_
+  ~0u,  // no _inlined_string_donated_
   ~0u,  // no _has_bits_
   PROTOBUF_FIELD_OFFSET(::AppendRequest, _internal_metadata_),
   ~0u,  // no _extensions_
@@ -154,52 +183,68 @@ const ::PROTOBUF_NAMESPACE_ID::uint32 TableStruct_blockchain_2eproto::offsets[] 
   ~0u,  // no _inlined_string_donated_
   PROTOBUF_FIELD_OFFSET(::Block, transactions_),
   PROTOBUF_FIELD_OFFSET(::Block, block_id_),
+  ~0u,  // no _has_bits_
+  PROTOBUF_FIELD_OFFSET(::InvalidationRequest, _internal_metadata_),
+  ~0u,  // no _extensions_
+  ~0u,  // no _oneof_case_
+  ~0u,  // no _weak_field_map_
+  ~0u,  // no _inlined_string_donated_
+  PROTOBUF_FIELD_OFFSET(::InvalidationRequest, key_to_inval_),
 };
 static const ::PROTOBUF_NAMESPACE_ID::internal::MigrationSchema schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
-  { 0, -1, -1, sizeof(::AppendRequest)},
-  { 8, -1, -1, sizeof(::AppendResponse)},
-  { 14, -1, -1, sizeof(::ReadItem)},
-  { 23, -1, -1, sizeof(::WriteItem)},
-  { 31, -1, -1, sizeof(::Endorsement)},
-  { 43, -1, -1, sizeof(::Block)},
+  { 0, -1, -1, sizeof(::Notification)},
+  { 6, -1, -1, sizeof(::AppendRequest)},
+  { 14, -1, -1, sizeof(::AppendResponse)},
+  { 20, -1, -1, sizeof(::ReadItem)},
+  { 29, -1, -1, sizeof(::WriteItem)},
+  { 37, -1, -1, sizeof(::Endorsement)},
+  { 49, -1, -1, sizeof(::Block)},
+  { 57, -1, -1, sizeof(::InvalidationRequest)},
 };
 
 static ::PROTOBUF_NAMESPACE_ID::Message const * const file_default_instances[] = {
+  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::_Notification_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::_AppendRequest_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::_AppendResponse_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::_ReadItem_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::_WriteItem_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::_Endorsement_default_instance_),
   reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::_Block_default_instance_),
+  reinterpret_cast<const ::PROTOBUF_NAMESPACE_ID::Message*>(&::_InvalidationRequest_default_instance_),
 };
 
 const char descriptor_table_protodef_blockchain_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) =
   "\n\020blockchain.proto\032\033google/protobuf/empt"
-  "y.proto\";\n\rAppendRequest\022\025\n\rleader_commi"
-  "t\030\001 \001(\004\022\023\n\013log_entries\030\002 \003(\014\"\020\n\016AppendRe"
-  "sponse\"J\n\010ReadItem\022\020\n\010read_key\030\001 \001(\014\022\025\n\r"
-  "block_seq_num\030\002 \001(\004\022\025\n\rtrans_seq_num\030\003 \001"
-  "(\004\"3\n\tWriteItem\022\021\n\twrite_key\030\001 \001(\014\022\023\n\013wr"
-  "ite_value\030\002 \001(\014\"\252\001\n\013Endorsement\022\033\n\010read_"
-  "set\030\001 \003(\0132\t.ReadItem\022\035\n\twrite_set\030\002 \003(\0132"
-  "\n.WriteItem\022\026\n\016transaction_id\030\003 \001(\014\022\023\n\013e"
-  "ndorser_id\030\004 \001(\004\022\032\n\022endorser_signature\030\005"
-  " \001(\014\022\026\n\016adjacency_list\030\006 \003(\004\"=\n\005Block\022\"\n"
-  "\014transactions\030\001 \003(\0132\014.Endorsement\022\020\n\010blo"
-  "ck_id\030\002 \001(\0042~\n\rConsensusComm\0223\n\016append_e"
-  "ntries\022\016.AppendRequest\032\017.AppendResponse\""
-  "\000\0228\n\016send_to_leader\022\014.Endorsement\032\026.goog"
-  "le.protobuf.Empty\"\0002D\n\013ComputeComm\0225\n\021se"
-  "nd_to_validator\022\006.Block\032\026.google.protobu"
-  "f.Empty\"\000b\006proto3"
+  "y.proto\"\016\n\014Notification\";\n\rAppendRequest"
+  "\022\025\n\rleader_commit\030\001 \001(\004\022\023\n\013log_entries\030\002"
+  " \003(\014\"\020\n\016AppendResponse\"J\n\010ReadItem\022\020\n\010re"
+  "ad_key\030\001 \001(\014\022\025\n\rblock_seq_num\030\002 \001(\004\022\025\n\rt"
+  "rans_seq_num\030\003 \001(\004\"3\n\tWriteItem\022\021\n\twrite"
+  "_key\030\001 \001(\014\022\023\n\013write_value\030\002 \001(\014\"\252\001\n\013Endo"
+  "rsement\022\033\n\010read_set\030\001 \003(\0132\t.ReadItem\022\035\n\t"
+  "write_set\030\002 \003(\0132\n.WriteItem\022\026\n\016transacti"
+  "on_id\030\003 \001(\014\022\023\n\013endorser_id\030\004 \001(\004\022\032\n\022endo"
+  "rser_signature\030\005 \001(\014\022\026\n\016adjacency_list\030\006"
+  " \003(\004\"=\n\005Block\022\"\n\014transactions\030\001 \003(\0132\014.En"
+  "dorsement\022\020\n\010block_id\030\002 \001(\004\"+\n\023Invalidat"
+  "ionRequest\022\024\n\014key_to_inval\030\001 \001(\t2~\n\rCons"
+  "ensusComm\0223\n\016append_entries\022\016.AppendRequ"
+  "est\032\017.AppendResponse\"\000\0228\n\016send_to_leader"
+  "\022\014.Endorsement\032\026.google.protobuf.Empty\"\000"
+  "2\304\001\n\013ComputeComm\0225\n\021send_to_validator\022\006."
+  "Block\032\026.google.protobuf.Empty\"\000\022\?\n\rinval"
+  "idate_cn\022\024.InvalidationRequest\032\026.google."
+  "protobuf.Empty\"\000\022=\n\022start_benchmarking\022\r"
+  ".Notification\032\026.google.protobuf.Empty\"\000b"
+  "\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_blockchain_2eproto_deps[1] = {
   &::descriptor_table_google_2fprotobuf_2fempty_2eproto,
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_blockchain_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_blockchain_2eproto = {
-  false, false, 697, descriptor_table_protodef_blockchain_2eproto, "blockchain.proto", 
-  &descriptor_table_blockchain_2eproto_once, descriptor_table_blockchain_2eproto_deps, 1, 6,
+  false, false, 887, descriptor_table_protodef_blockchain_2eproto, "blockchain.proto", 
+  &descriptor_table_blockchain_2eproto_once, descriptor_table_blockchain_2eproto_deps, 1, 8,
   schemas, file_default_instances, TableStruct_blockchain_2eproto::offsets,
   file_level_metadata_blockchain_2eproto, file_level_enum_descriptors_blockchain_2eproto, file_level_service_descriptors_blockchain_2eproto,
 };
@@ -209,6 +254,45 @@ PROTOBUF_ATTRIBUTE_WEAK const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable
 
 // Force running AddDescriptors() at dynamic initialization time.
 PROTOBUF_ATTRIBUTE_INIT_PRIORITY static ::PROTOBUF_NAMESPACE_ID::internal::AddDescriptorsRunner dynamic_init_dummy_blockchain_2eproto(&descriptor_table_blockchain_2eproto);
+
+// ===================================================================
+
+class Notification::_Internal {
+ public:
+};
+
+Notification::Notification(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                         bool is_message_owned)
+  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase(arena, is_message_owned) {
+  // @@protoc_insertion_point(arena_constructor:Notification)
+}
+Notification::Notification(const Notification& from)
+  : ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase() {
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:Notification)
+}
+
+
+
+
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData Notification::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyImpl,
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeImpl,
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*Notification::GetClassData() const { return &_class_data_; }
+
+
+
+
+
+
+
+::PROTOBUF_NAMESPACE_ID::Metadata Notification::GetMetadata() const {
+  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+      &descriptor_table_blockchain_2eproto_getter, &descriptor_table_blockchain_2eproto_once,
+      file_level_metadata_blockchain_2eproto[0]);
+}
 
 // ===================================================================
 
@@ -418,7 +502,7 @@ void AppendRequest::InternalSwap(AppendRequest* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata AppendRequest::GetMetadata() const {
   return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
       &descriptor_table_blockchain_2eproto_getter, &descriptor_table_blockchain_2eproto_once,
-      file_level_metadata_blockchain_2eproto[0]);
+      file_level_metadata_blockchain_2eproto[1]);
 }
 
 // ===================================================================
@@ -457,7 +541,7 @@ const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*AppendResponse::GetClassData()
 ::PROTOBUF_NAMESPACE_ID::Metadata AppendResponse::GetMetadata() const {
   return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
       &descriptor_table_blockchain_2eproto_getter, &descriptor_table_blockchain_2eproto_once,
-      file_level_metadata_blockchain_2eproto[1]);
+      file_level_metadata_blockchain_2eproto[2]);
 }
 
 // ===================================================================
@@ -709,7 +793,7 @@ void ReadItem::InternalSwap(ReadItem* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata ReadItem::GetMetadata() const {
   return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
       &descriptor_table_blockchain_2eproto_getter, &descriptor_table_blockchain_2eproto_once,
-      file_level_metadata_blockchain_2eproto[2]);
+      file_level_metadata_blockchain_2eproto[3]);
 }
 
 // ===================================================================
@@ -939,7 +1023,7 @@ void WriteItem::InternalSwap(WriteItem* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata WriteItem::GetMetadata() const {
   return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
       &descriptor_table_blockchain_2eproto_getter, &descriptor_table_blockchain_2eproto_once,
-      file_level_metadata_blockchain_2eproto[3]);
+      file_level_metadata_blockchain_2eproto[4]);
 }
 
 // ===================================================================
@@ -1301,7 +1385,7 @@ void Endorsement::InternalSwap(Endorsement* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata Endorsement::GetMetadata() const {
   return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
       &descriptor_table_blockchain_2eproto_getter, &descriptor_table_blockchain_2eproto_once,
-      file_level_metadata_blockchain_2eproto[4]);
+      file_level_metadata_blockchain_2eproto[5]);
 }
 
 // ===================================================================
@@ -1512,11 +1596,211 @@ void Block::InternalSwap(Block* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata Block::GetMetadata() const {
   return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
       &descriptor_table_blockchain_2eproto_getter, &descriptor_table_blockchain_2eproto_once,
-      file_level_metadata_blockchain_2eproto[5]);
+      file_level_metadata_blockchain_2eproto[6]);
+}
+
+// ===================================================================
+
+class InvalidationRequest::_Internal {
+ public:
+};
+
+InvalidationRequest::InvalidationRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                         bool is_message_owned)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena, is_message_owned) {
+  SharedCtor();
+  if (!is_message_owned) {
+    RegisterArenaDtor(arena);
+  }
+  // @@protoc_insertion_point(arena_constructor:InvalidationRequest)
+}
+InvalidationRequest::InvalidationRequest(const InvalidationRequest& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  key_to_inval_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+  if (!from._internal_key_to_inval().empty()) {
+    key_to_inval_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, from._internal_key_to_inval(), 
+      GetArenaForAllocation());
+  }
+  // @@protoc_insertion_point(copy_constructor:InvalidationRequest)
+}
+
+void InvalidationRequest::SharedCtor() {
+key_to_inval_.UnsafeSetDefault(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+
+InvalidationRequest::~InvalidationRequest() {
+  // @@protoc_insertion_point(destructor:InvalidationRequest)
+  if (GetArenaForAllocation() != nullptr) return;
+  SharedDtor();
+  _internal_metadata_.Delete<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+inline void InvalidationRequest::SharedDtor() {
+  GOOGLE_DCHECK(GetArenaForAllocation() == nullptr);
+  key_to_inval_.DestroyNoArena(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited());
+}
+
+void InvalidationRequest::ArenaDtor(void* object) {
+  InvalidationRequest* _this = reinterpret_cast< InvalidationRequest* >(object);
+  (void)_this;
+}
+void InvalidationRequest::RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena*) {
+}
+void InvalidationRequest::SetCachedSize(int size) const {
+  _cached_size_.Set(size);
+}
+
+void InvalidationRequest::Clear() {
+// @@protoc_insertion_point(message_clear_start:InvalidationRequest)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  key_to_inval_.ClearToEmpty();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* InvalidationRequest::_InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::PROTOBUF_NAMESPACE_ID::uint32 tag;
+    ptr = ::PROTOBUF_NAMESPACE_ID::internal::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // string key_to_inval = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::PROTOBUF_NAMESPACE_ID::uint8>(tag) == 10)) {
+          auto str = _internal_mutable_key_to_inval();
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(::PROTOBUF_NAMESPACE_ID::internal::VerifyUTF8(str, "InvalidationRequest.key_to_inval"));
+          CHK_(ptr);
+        } else
+          goto handle_unusual;
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::PROTOBUF_NAMESPACE_ID::uint8* InvalidationRequest::_InternalSerialize(
+    ::PROTOBUF_NAMESPACE_ID::uint8* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:InvalidationRequest)
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // string key_to_inval = 1;
+  if (!this->_internal_key_to_inval().empty()) {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+      this->_internal_key_to_inval().data(), static_cast<int>(this->_internal_key_to_inval().length()),
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE,
+      "InvalidationRequest.key_to_inval");
+    target = stream->WriteStringMaybeAliased(
+        1, this->_internal_key_to_inval(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:InvalidationRequest)
+  return target;
+}
+
+size_t InvalidationRequest::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:InvalidationRequest)
+  size_t total_size = 0;
+
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // string key_to_inval = 1;
+  if (!this->_internal_key_to_inval().empty()) {
+    total_size += 1 +
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+        this->_internal_key_to_inval());
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData InvalidationRequest::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSizeCheck,
+    InvalidationRequest::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*InvalidationRequest::GetClassData() const { return &_class_data_; }
+
+void InvalidationRequest::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to,
+                      const ::PROTOBUF_NAMESPACE_ID::Message& from) {
+  static_cast<InvalidationRequest *>(to)->MergeFrom(
+      static_cast<const InvalidationRequest &>(from));
+}
+
+
+void InvalidationRequest::MergeFrom(const InvalidationRequest& from) {
+// @@protoc_insertion_point(class_specific_merge_from_start:InvalidationRequest)
+  GOOGLE_DCHECK_NE(&from, this);
+  ::PROTOBUF_NAMESPACE_ID::uint32 cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_key_to_inval().empty()) {
+    _internal_set_key_to_inval(from._internal_key_to_inval());
+  }
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void InvalidationRequest::CopyFrom(const InvalidationRequest& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:InvalidationRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool InvalidationRequest::IsInitialized() const {
+  return true;
+}
+
+void InvalidationRequest::InternalSwap(InvalidationRequest* other) {
+  using std::swap;
+  auto* lhs_arena = GetArenaForAllocation();
+  auto* rhs_arena = other->GetArenaForAllocation();
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::InternalSwap(
+      &::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(),
+      &key_to_inval_, lhs_arena,
+      &other->key_to_inval_, rhs_arena
+  );
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata InvalidationRequest::GetMetadata() const {
+  return ::PROTOBUF_NAMESPACE_ID::internal::AssignDescriptors(
+      &descriptor_table_blockchain_2eproto_getter, &descriptor_table_blockchain_2eproto_once,
+      file_level_metadata_blockchain_2eproto[7]);
 }
 
 // @@protoc_insertion_point(namespace_scope)
 PROTOBUF_NAMESPACE_OPEN
+template<> PROTOBUF_NOINLINE ::Notification* Arena::CreateMaybeMessage< ::Notification >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::Notification >(arena);
+}
 template<> PROTOBUF_NOINLINE ::AppendRequest* Arena::CreateMaybeMessage< ::AppendRequest >(Arena* arena) {
   return Arena::CreateMessageInternal< ::AppendRequest >(arena);
 }
@@ -1534,6 +1818,9 @@ template<> PROTOBUF_NOINLINE ::Endorsement* Arena::CreateMaybeMessage< ::Endorse
 }
 template<> PROTOBUF_NOINLINE ::Block* Arena::CreateMaybeMessage< ::Block >(Arena* arena) {
   return Arena::CreateMessageInternal< ::Block >(arena);
+}
+template<> PROTOBUF_NOINLINE ::InvalidationRequest* Arena::CreateMaybeMessage< ::InvalidationRequest >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::InvalidationRequest >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
 

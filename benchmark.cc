@@ -4,6 +4,7 @@
 
 extern RequestQueue rq;
 extern volatile int end_flag;
+extern atomic_bool warmup_completed;
 
 /* functionality tests */
 int test_get_only() {
@@ -327,11 +328,11 @@ void *client_thread(void *arg) {
     return NULL;
 }
 
-int64_t benchmark_throughput() {
+void prepopulate() {
     int key_num = 400000;
     default_random_engine generator;
     uniform_int_distribution<int> distribution(0, key_num - 1);
-    
+
     for (int i = key_num; i >= 0; i--) {
         /* prepopulate - YSCB workload */
         // struct Request req;
@@ -364,13 +365,27 @@ int64_t benchmark_throughput() {
     while (!rq.rq_queue.empty())
         ;
     log_info(stderr, "*******************************prepopulation completed*******************************");
+}
 
+int64_t benchmark_throughput(bool is_validator) {
+    log_info(stderr, "*******************************benchmarking started*******************************");
+    int key_num = 400000;
     pthread_t client_tid;
     pthread_create(&client_tid, NULL, client_thread, &key_num);
 
+    if (is_validator) {
+        sleep(2);
+        warmup_completed = true;
+    }
+
     chrono::milliseconds before, after;
     before = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch());
-    sleep(10);
+    if (is_validator) {
+        sleep(10);
+    } else {
+        sleep(14);
+    }
+    
     end_flag = 1;
     after = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch());
 

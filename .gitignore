@@ -6,6 +6,5 @@ compute_server
 memory_server
 storage_server
 orderer
-config/*
 testdb/*
 consensus/*

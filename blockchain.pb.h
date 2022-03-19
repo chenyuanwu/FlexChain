@@ -48,7 +48,7 @@ struct TableStruct_blockchain_2eproto {
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::AuxiliaryParseTableField aux[]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
-  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[6]
+  static const ::PROTOBUF_NAMESPACE_ID::internal::ParseTable schema[8]
     PROTOBUF_SECTION_VARIABLE(protodesc_cold);
   static const ::PROTOBUF_NAMESPACE_ID::internal::FieldMetadata field_metadata[];
   static const ::PROTOBUF_NAMESPACE_ID::internal::SerializationTable serialization_table[];
@@ -67,6 +67,12 @@ extern BlockDefaultTypeInternal _Block_default_instance_;
 class Endorsement;
 struct EndorsementDefaultTypeInternal;
 extern EndorsementDefaultTypeInternal _Endorsement_default_instance_;
+class InvalidationRequest;
+struct InvalidationRequestDefaultTypeInternal;
+extern InvalidationRequestDefaultTypeInternal _InvalidationRequest_default_instance_;
+class Notification;
+struct NotificationDefaultTypeInternal;
+extern NotificationDefaultTypeInternal _Notification_default_instance_;
 class ReadItem;
 struct ReadItemDefaultTypeInternal;
 extern ReadItemDefaultTypeInternal _ReadItem_default_instance_;
@@ -78,11 +84,128 @@ template<> ::AppendRequest* Arena::CreateMaybeMessage<::AppendRequest>(Arena*);
 template<> ::AppendResponse* Arena::CreateMaybeMessage<::AppendResponse>(Arena*);
 template<> ::Block* Arena::CreateMaybeMessage<::Block>(Arena*);
 template<> ::Endorsement* Arena::CreateMaybeMessage<::Endorsement>(Arena*);
+template<> ::InvalidationRequest* Arena::CreateMaybeMessage<::InvalidationRequest>(Arena*);
+template<> ::Notification* Arena::CreateMaybeMessage<::Notification>(Arena*);
 template<> ::ReadItem* Arena::CreateMaybeMessage<::ReadItem>(Arena*);
 template<> ::WriteItem* Arena::CreateMaybeMessage<::WriteItem>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
 
 // ===================================================================
+
+class Notification final :
+    public ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase /* @@protoc_insertion_point(class_definition:Notification) */ {
+ public:
+  inline Notification() : Notification(nullptr) {}
+  explicit constexpr Notification(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  Notification(const Notification& from);
+  Notification(Notification&& from) noexcept
+    : Notification() {
+    *this = ::std::move(from);
+  }
+
+  inline Notification& operator=(const Notification& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline Notification& operator=(Notification&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const Notification& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const Notification* internal_default_instance() {
+    return reinterpret_cast<const Notification*>(
+               &_Notification_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    0;
+
+  friend void swap(Notification& a, Notification& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(Notification* other) {
+    if (other == this) return;
+    if (GetOwningArena() == other->GetOwningArena()) {
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(Notification* other) {
+    if (other == this) return;
+    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline Notification* New() const final {
+    return new Notification();
+  }
+
+  Notification* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<Notification>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyFrom;
+  inline void CopyFrom(const Notification& from) {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::CopyImpl(this, from);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeFrom;
+  void MergeFrom(const Notification& from) {
+    ::PROTOBUF_NAMESPACE_ID::internal::ZeroFieldsBase::MergeImpl(this, from);
+  }
+  public:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "Notification";
+  }
+  protected:
+  explicit Notification(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                       bool is_message_owned = false);
+  private:
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  // @@protoc_insertion_point(class_scope:Notification)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_blockchain_2eproto;
+};
+// -------------------------------------------------------------------
 
 class AppendRequest final :
     public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:AppendRequest) */ {
@@ -132,7 +255,7 @@ class AppendRequest final :
                &_AppendRequest_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    0;
+    1;
 
   friend void swap(AppendRequest& a, AppendRequest& b) {
     a.Swap(&b);
@@ -300,7 +423,7 @@ class AppendResponse final :
                &_AppendResponse_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    1;
+    2;
 
   friend void swap(AppendResponse& a, AppendResponse& b) {
     a.Swap(&b);
@@ -416,7 +539,7 @@ class ReadItem final :
                &_ReadItem_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    2;
+    3;
 
   friend void swap(ReadItem& a, ReadItem& b) {
     a.Swap(&b);
@@ -586,7 +709,7 @@ class WriteItem final :
                &_WriteItem_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    3;
+    4;
 
   friend void swap(WriteItem& a, WriteItem& b) {
     a.Swap(&b);
@@ -750,7 +873,7 @@ class Endorsement final :
                &_Endorsement_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    4;
+    5;
 
   friend void swap(Endorsement& a, Endorsement& b) {
     a.Swap(&b);
@@ -990,7 +1113,7 @@ class Block final :
                &_Block_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    5;
+    6;
 
   friend void swap(Block& a, Block& b) {
     a.Swap(&b);
@@ -1103,6 +1226,154 @@ class Block final :
   mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   friend struct ::TableStruct_blockchain_2eproto;
 };
+// -------------------------------------------------------------------
+
+class InvalidationRequest final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:InvalidationRequest) */ {
+ public:
+  inline InvalidationRequest() : InvalidationRequest(nullptr) {}
+  ~InvalidationRequest() override;
+  explicit constexpr InvalidationRequest(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  InvalidationRequest(const InvalidationRequest& from);
+  InvalidationRequest(InvalidationRequest&& from) noexcept
+    : InvalidationRequest() {
+    *this = ::std::move(from);
+  }
+
+  inline InvalidationRequest& operator=(const InvalidationRequest& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline InvalidationRequest& operator=(InvalidationRequest&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const InvalidationRequest& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const InvalidationRequest* internal_default_instance() {
+    return reinterpret_cast<const InvalidationRequest*>(
+               &_InvalidationRequest_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    7;
+
+  friend void swap(InvalidationRequest& a, InvalidationRequest& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(InvalidationRequest* other) {
+    if (other == this) return;
+    if (GetOwningArena() == other->GetOwningArena()) {
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(InvalidationRequest* other) {
+    if (other == this) return;
+    GOOGLE_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  inline InvalidationRequest* New() const final {
+    return new InvalidationRequest();
+  }
+
+  InvalidationRequest* New(::PROTOBUF_NAMESPACE_ID::Arena* arena) const final {
+    return CreateMaybeMessage<InvalidationRequest>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const InvalidationRequest& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom(const InvalidationRequest& from);
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message* to, const ::PROTOBUF_NAMESPACE_ID::Message& from);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::PROTOBUF_NAMESPACE_ID::uint8* _InternalSerialize(
+      ::PROTOBUF_NAMESPACE_ID::uint8* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _cached_size_.Get(); }
+
+  private:
+  void SharedCtor();
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(InvalidationRequest* other);
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::PROTOBUF_NAMESPACE_ID::StringPiece FullMessageName() {
+    return "InvalidationRequest";
+  }
+  protected:
+  explicit InvalidationRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena,
+                       bool is_message_owned = false);
+  private:
+  static void ArenaDtor(void* object);
+  inline void RegisterArenaDtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kKeyToInvalFieldNumber = 1,
+  };
+  // string key_to_inval = 1;
+  void clear_key_to_inval();
+  const std::string& key_to_inval() const;
+  template <typename ArgT0 = const std::string&, typename... ArgT>
+  void set_key_to_inval(ArgT0&& arg0, ArgT... args);
+  std::string* mutable_key_to_inval();
+  PROTOBUF_MUST_USE_RESULT std::string* release_key_to_inval();
+  void set_allocated_key_to_inval(std::string* key_to_inval);
+  private:
+  const std::string& _internal_key_to_inval() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_key_to_inval(const std::string& value);
+  std::string* _internal_mutable_key_to_inval();
+  public:
+
+  // @@protoc_insertion_point(class_scope:InvalidationRequest)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr key_to_inval_;
+  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  friend struct ::TableStruct_blockchain_2eproto;
+};
 // ===================================================================
 
 
@@ -1112,6 +1383,10 @@ class Block final :
   #pragma GCC diagnostic push
   #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif  // __GNUC__
+// Notification
+
+// -------------------------------------------------------------------
+
 // AppendRequest
 
 // uint64 leader_commit = 1;
@@ -1706,9 +1981,63 @@ inline void Block::set_block_id(::PROTOBUF_NAMESPACE_ID::uint64 value) {
   // @@protoc_insertion_point(field_set:Block.block_id)
 }
 
+// -------------------------------------------------------------------
+
+// InvalidationRequest
+
+// string key_to_inval = 1;
+inline void InvalidationRequest::clear_key_to_inval() {
+  key_to_inval_.ClearToEmpty();
+}
+inline const std::string& InvalidationRequest::key_to_inval() const {
+  // @@protoc_insertion_point(field_get:InvalidationRequest.key_to_inval)
+  return _internal_key_to_inval();
+}
+template <typename ArgT0, typename... ArgT>
+inline PROTOBUF_ALWAYS_INLINE
+void InvalidationRequest::set_key_to_inval(ArgT0&& arg0, ArgT... args) {
+ 
+ key_to_inval_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, static_cast<ArgT0 &&>(arg0), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:InvalidationRequest.key_to_inval)
+}
+inline std::string* InvalidationRequest::mutable_key_to_inval() {
+  std::string* _s = _internal_mutable_key_to_inval();
+  // @@protoc_insertion_point(field_mutable:InvalidationRequest.key_to_inval)
+  return _s;
+}
+inline const std::string& InvalidationRequest::_internal_key_to_inval() const {
+  return key_to_inval_.Get();
+}
+inline void InvalidationRequest::_internal_set_key_to_inval(const std::string& value) {
+  
+  key_to_inval_.Set(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, value, GetArenaForAllocation());
+}
+inline std::string* InvalidationRequest::_internal_mutable_key_to_inval() {
+  
+  return key_to_inval_.Mutable(::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr::EmptyDefault{}, GetArenaForAllocation());
+}
+inline std::string* InvalidationRequest::release_key_to_inval() {
+  // @@protoc_insertion_point(field_release:InvalidationRequest.key_to_inval)
+  return key_to_inval_.Release(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), GetArenaForAllocation());
+}
+inline void InvalidationRequest::set_allocated_key_to_inval(std::string* key_to_inval) {
+  if (key_to_inval != nullptr) {
+    
+  } else {
+    
+  }
+  key_to_inval_.SetAllocated(&::PROTOBUF_NAMESPACE_ID::internal::GetEmptyStringAlreadyInited(), key_to_inval,
+      GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set_allocated:InvalidationRequest.key_to_inval)
+}
+
 #ifdef __GNUC__
   #pragma GCC diagnostic pop
 #endif  // __GNUC__
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------
