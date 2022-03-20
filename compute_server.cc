@@ -572,7 +572,7 @@ void *simulation_handler(void *arg) {
             uniform_int_distribution<int> distribution(0, key_num - 1);
 
             vector<int> A;
-            int num_keys_per_trans = 50;
+            int num_keys_per_trans = 60;
             for (int i = 0; i < num_keys_per_trans; i++) {
                 int random_number = distribution(generator);
                 string key = "key_" + to_string(random_number);
@@ -581,7 +581,7 @@ void *simulation_handler(void *arg) {
                 memcpy(&data, value.c_str(), sizeof(uint64_t));
                 A.push_back(data);
             }
-            kmeans(A, 5);
+            kmeans(A, 20);
         }
 
         /* send the generated endorsement to the client/orderer */
@@ -598,8 +598,8 @@ void *simulation_handler(void *arg) {
 /* validate and commit transactions (V stage) */
 bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_client, vector<ComputeCommClient> &compute_clients,
                           uint64_t block_id, uint64_t trans_id, const Endorsement &transaction) {
-    log_debug(logger_fp, "******validating transaction[block_id = %ld, trans_id = %ld, thread_id = %d]******",
-              block_id, trans_id, ctx.thread_index);
+    // log_info(stderr, "******validating transaction[block_id = %ld, trans_id = %ld, thread_id = %d]******",
+    //           block_id, trans_id, ctx.thread_index);
     bool is_valid = true;
 
     for (int read_id = 0; read_id < transaction.read_set_size(); read_id++) {
@@ -866,17 +866,17 @@ void run_server(const string &server_address, bool is_validator) {
 
     pthread_t bg_tid;
     pthread_create(&bg_tid, NULL, background_handler, NULL);
-    // if (is_validator) {
-    //     pthread_t validation_manager_tid;
-    //     pthread_create(&validation_manager_tid, NULL, parallel_validation_manager, NULL);
-    //     cpu_set_t cpuset;
-    //     CPU_ZERO(&cpuset);
-    //     CPU_SET(0, &cpuset);
-    //     int ret = pthread_setaffinity_np(validation_manager_tid, sizeof(cpu_set_t), &cpuset);
-    //     if (ret) {
-    //         log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
-    //     }
-    // }
+    if (is_validator) {
+        pthread_t validation_manager_tid;
+        pthread_create(&validation_manager_tid, NULL, parallel_validation_manager, NULL);
+        cpu_set_t cpuset;
+        CPU_ZERO(&cpuset);
+        CPU_SET(0, &cpuset);
+        int ret = pthread_setaffinity_np(validation_manager_tid, sizeof(cpu_set_t), &cpuset);
+        if (ret) {
+            log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
+        }
+    }
 
     int num_threads = c_config_info.num_qps_per_server;
     int num_sim_threads = c_config_info.num_sim_threads;
@@ -891,8 +891,8 @@ void run_server(const string &server_address, bool is_validator) {
         if (i < num_sim_threads) {
             pthread_create(&tid[i], NULL, simulation_handler, &ctxs[i]);
         } else {
-            // pthread_create(&tid[i], NULL, parallel_validation_worker, &ctxs[i]);
-            pthread_create(&tid[i], NULL, validation_handler, &ctxs[i]);
+            pthread_create(&tid[i], NULL, parallel_validation_worker, &ctxs[i]);
+            // pthread_create(&tid[i], NULL, validation_handler, &ctxs[i]);
         }
         /* stick thread to a core for better performance */
         int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
@@ -1002,7 +1002,8 @@ int ComputeCommClient::invalidate_cn(const string &key) {
 
     inval.set_key_to_inval(key);
 
-    stub_->async()->invalidate_cn(&context, &inval, &rsp, [](Status s) {});
+    // stub_->async()->invalidate_cn(&context, &inval, &rsp, [](Status s) {});
+    stub_->invalidate_cn(&context, inval, &rsp);
 
     return 0;
 }
