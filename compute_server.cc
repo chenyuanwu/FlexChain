@@ -479,6 +479,9 @@ void *simulation_handler(void *arg) {
     /* set up grpc client for other compute servers (dummy clients here) */
     vector<ComputeCommClient> compute_clients;
 
+    default_random_engine generator;
+    uniform_int_distribution<int> distribution(0, KEY_NUM - 1);
+
     char *buf = (char *)malloc(c_config_info.data_msg_size);
     long local_ops = 0;
     while (!end_flag) {
@@ -567,10 +570,6 @@ void *simulation_handler(void *arg) {
                 s_kv_put(proposal.key, proposal.value, endorsement);
             }
         } else if (proposal.type == Request::Type::KMEANS) {
-            int key_num = 400000;
-            default_random_engine generator;
-            uniform_int_distribution<int> distribution(0, key_num - 1);
-
             vector<int> A;
             int num_keys_per_trans = 60;
             for (int i = 0; i < num_keys_per_trans; i++) {
@@ -582,6 +581,74 @@ void *simulation_handler(void *arg) {
                 A.push_back(data);
             }
             kmeans(A, 20);
+        } else if (proposal.type == Request::Type::TransactSavings) {
+            int user_id = distribution(generator);
+            string key = "saving_" + to_string(user_id);
+            string value = s_kv_get(ctx, storage_client, key, endorsement);
+            uint64_t balance;
+            memcpy(&balance, value.c_str(), sizeof(uint64_t));
+            balance += 1000;
+
+            s_kv_put(key, get_balance_str(balance), endorsement);
+        } else if (proposal.type == Request::Type::DepositChecking) {
+            int user_id = distribution(generator);
+            string key = "checking_" + to_string(user_id);
+            string value = s_kv_get(ctx, storage_client, key, endorsement);
+            uint64_t balance;
+            memcpy(&balance, value.c_str(), sizeof(uint64_t));
+            balance += 1000;
+
+            s_kv_put(key, get_balance_str(balance), endorsement);
+        } else if (proposal.type == Request::Type::SendPayment) {
+            int sender_id = distribution(generator);
+            int receiver_id = distribution(generator);
+            string sender_key = "checking_" + to_string(sender_id);
+            string receiver_key = "checking_" + to_string(receiver_id);
+
+            string sender_value = s_kv_get(ctx, storage_client, sender_key, endorsement);
+            string receiver_value = s_kv_get(ctx, storage_client, receiver_key, endorsement);
+            uint64_t sender_balance, receiver_balance;
+            memcpy(&sender_balance, sender_value.c_str(), sizeof(uint64_t));
+            memcpy(&receiver_balance, receiver_value.c_str(), sizeof(uint64_t));
+            if (sender_balance >= 5) {
+                sender_balance -= 5;
+                receiver_balance += 5;
+                
+                s_kv_put(sender_key, get_balance_str(sender_balance), endorsement);
+                s_kv_put(receiver_key, get_balance_str(receiver_balance), endorsement);
+            }
+        } else if (proposal.type == Request::Type::WriteCheck) {
+            int user_id = distribution(generator);
+            string key = "checking_" + to_string(user_id);
+            string value = s_kv_get(ctx, storage_client, key, endorsement);
+            uint64_t balance;
+            memcpy(&balance, value.c_str(), sizeof(uint64_t));
+            if (balance >= 100) {
+                balance -= 100;
+                s_kv_put(key, get_balance_str(balance), endorsement);
+            }
+        } else if (proposal.type == Request::Type::Amalgamate) {
+            int user_id = distribution(generator);
+            string checking_key = "checking_" + to_string(user_id);
+            string saving_key = "saving_" + to_string(user_id);
+
+            string checking_value = s_kv_get(ctx, storage_client, checking_key, endorsement);
+            string saving_value = s_kv_get(ctx, storage_client, saving_key, endorsement);
+            uint64_t checking_balance, saving_balance;
+            memcpy(&checking_balance, checking_value.c_str(), sizeof(uint64_t));
+            memcpy(&saving_balance, saving_value.c_str(), sizeof(uint64_t));
+            checking_balance = checking_balance + saving_balance;
+            saving_balance = 0;
+
+            s_kv_put(checking_key, get_balance_str(checking_balance), endorsement);
+            s_kv_put(saving_key, get_balance_str(saving_balance), endorsement);
+        } else if (proposal.type == Request::Type::Query) {
+            int user_id = distribution(generator);
+            string checking_key = "checking_" + to_string(user_id);
+            string saving_key = "saving_" + to_string(user_id);
+
+            string checking_value = s_kv_get(ctx, storage_client, checking_key, endorsement);
+            string saving_value = s_kv_get(ctx, storage_client, saving_key, endorsement);
         }
 
         /* send the generated endorsement to the client/orderer */
