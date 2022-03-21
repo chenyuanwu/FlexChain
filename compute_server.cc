@@ -496,6 +496,9 @@ void *simulation_handler(void *arg) {
         Endorsement endorsement;
         google::protobuf::Empty rsp;
 
+        size_t meta_data_size = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + proposal.key.length() + 2 * sizeof(uint64_t);
+        // size_t meta_data_size = 2 * sizeof(uint64_t);
+
         /* the smart contract */
         if (proposal.type == Request::Type::GET) {
             // string value;
@@ -536,8 +539,6 @@ void *simulation_handler(void *arg) {
                       ctx.thread_index, proposal.key.c_str(), put_value);
             bzero(buf, c_config_info.data_msg_size);
             strcpy(buf, proposal.value.c_str());
-            size_t meta_data_size = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + proposal.key.length() + 2 * sizeof(uint64_t);
-            // size_t meta_data_size = 0;
             proposal.value.assign(buf, c_config_info.data_msg_size - meta_data_size);
             /* if it is prepopulation */
             if (proposal.is_prep) {
@@ -589,7 +590,8 @@ void *simulation_handler(void *arg) {
             memcpy(&balance, value.c_str(), sizeof(uint64_t));
             balance += 1000;
 
-            s_kv_put(key, get_balance_str(balance), endorsement);
+            s_kv_put(key, get_balance_str(balance, c_config_info.data_msg_size - meta_data_size), endorsement);
+            // log_info(stderr, "[W]TransactSavings: user_id = %d.", user_id);
         } else if (proposal.type == Request::Type::DepositChecking) {
             int user_id = distribution(generator);
             string key = "checking_" + to_string(user_id);
@@ -598,7 +600,8 @@ void *simulation_handler(void *arg) {
             memcpy(&balance, value.c_str(), sizeof(uint64_t));
             balance += 1000;
 
-            s_kv_put(key, get_balance_str(balance), endorsement);
+            s_kv_put(key, get_balance_str(balance, c_config_info.data_msg_size - meta_data_size), endorsement);
+            // log_info(stderr, "[W]DepositChecking: user_id = %d.", user_id);
         } else if (proposal.type == Request::Type::SendPayment) {
             int sender_id = distribution(generator);
             int receiver_id = distribution(generator);
@@ -613,9 +616,10 @@ void *simulation_handler(void *arg) {
             if (sender_balance >= 5) {
                 sender_balance -= 5;
                 receiver_balance += 5;
-                
-                s_kv_put(sender_key, get_balance_str(sender_balance), endorsement);
-                s_kv_put(receiver_key, get_balance_str(receiver_balance), endorsement);
+
+                s_kv_put(sender_key, get_balance_str(sender_balance, c_config_info.data_msg_size - meta_data_size), endorsement);
+                s_kv_put(receiver_key, get_balance_str(receiver_balance, c_config_info.data_msg_size - meta_data_size), endorsement);
+                // log_info(stderr, "[W]SendPayment: sender_id = %d, receiver_id = %d.", sender_id, receiver_id);
             }
         } else if (proposal.type == Request::Type::WriteCheck) {
             int user_id = distribution(generator);
@@ -625,7 +629,8 @@ void *simulation_handler(void *arg) {
             memcpy(&balance, value.c_str(), sizeof(uint64_t));
             if (balance >= 100) {
                 balance -= 100;
-                s_kv_put(key, get_balance_str(balance), endorsement);
+                s_kv_put(key, get_balance_str(balance, c_config_info.data_msg_size - meta_data_size), endorsement);
+                // log_info(stderr, "[W]WriteCheck: user_id = %d.", user_id);
             }
         } else if (proposal.type == Request::Type::Amalgamate) {
             int user_id = distribution(generator);
@@ -640,8 +645,9 @@ void *simulation_handler(void *arg) {
             checking_balance = checking_balance + saving_balance;
             saving_balance = 0;
 
-            s_kv_put(checking_key, get_balance_str(checking_balance), endorsement);
-            s_kv_put(saving_key, get_balance_str(saving_balance), endorsement);
+            s_kv_put(checking_key, get_balance_str(checking_balance, c_config_info.data_msg_size - meta_data_size), endorsement);
+            s_kv_put(saving_key, get_balance_str(saving_balance, c_config_info.data_msg_size - meta_data_size), endorsement);
+            // log_info(stderr, "[W]Amalgamate: user_id = %d.", user_id);
         } else if (proposal.type == Request::Type::Query) {
             int user_id = distribution(generator);
             string checking_key = "checking_" + to_string(user_id);
@@ -649,6 +655,7 @@ void *simulation_handler(void *arg) {
 
             string checking_value = s_kv_get(ctx, storage_client, checking_key, endorsement);
             string saving_value = s_kv_get(ctx, storage_client, saving_key, endorsement);
+            // log_info(stderr, "[R]Query: user_id = %d.", user_id);
         }
 
         /* send the generated endorsement to the client/orderer */
@@ -933,17 +940,17 @@ void run_server(const string &server_address, bool is_validator) {
 
     pthread_t bg_tid;
     pthread_create(&bg_tid, NULL, background_handler, NULL);
-    if (is_validator) {
-        pthread_t validation_manager_tid;
-        pthread_create(&validation_manager_tid, NULL, parallel_validation_manager, NULL);
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
-        CPU_SET(0, &cpuset);
-        int ret = pthread_setaffinity_np(validation_manager_tid, sizeof(cpu_set_t), &cpuset);
-        if (ret) {
-            log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
-        }
-    }
+    // if (is_validator) {
+    //     pthread_t validation_manager_tid;
+    //     pthread_create(&validation_manager_tid, NULL, parallel_validation_manager, NULL);
+    //     cpu_set_t cpuset;
+    //     CPU_ZERO(&cpuset);
+    //     CPU_SET(0, &cpuset);
+    //     int ret = pthread_setaffinity_np(validation_manager_tid, sizeof(cpu_set_t), &cpuset);
+    //     if (ret) {
+    //         log_err("pthread_setaffinity_np failed with '%s'.", strerror(ret));
+    //     }
+    // }
 
     int num_threads = c_config_info.num_qps_per_server;
     int num_sim_threads = c_config_info.num_sim_threads;
@@ -958,8 +965,8 @@ void run_server(const string &server_address, bool is_validator) {
         if (i < num_sim_threads) {
             pthread_create(&tid[i], NULL, simulation_handler, &ctxs[i]);
         } else {
-            pthread_create(&tid[i], NULL, parallel_validation_worker, &ctxs[i]);
-            // pthread_create(&tid[i], NULL, validation_handler, &ctxs[i]);
+            // pthread_create(&tid[i], NULL, parallel_validation_worker, &ctxs[i]);
+            pthread_create(&tid[i], NULL, validation_handler, &ctxs[i]);
         }
         /* stick thread to a core for better performance */
         int num_cores = sysconf(_SC_NPROCESSORS_ONLN);

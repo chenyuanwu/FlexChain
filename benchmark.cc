@@ -267,23 +267,23 @@ void kmeans(vector<int> &A, int K) {
     // }
 }
 
-string get_balance_str(uint64_t balance) {
+string get_balance_str(uint64_t balance, size_t length) {
     uint64_t new_balance = balance;
-    char *buf = (char *)malloc(sizeof(uint64_t));
+    char *buf = (char *)malloc(length);
     memcpy(buf, &new_balance, sizeof(uint64_t));
-    string new_balance_str(buf, sizeof(uint64_t));
+    string new_balance_str(buf, length);
     free(buf);
     
     return new_balance_str; 
 }
 
 void *client_thread(void *arg) {
-    int trans_per_interval = 1000;
+    int trans_per_interval = 3000;
     int interval = 50000;
 
     default_random_engine generator;
     uniform_int_distribution<int> distribution(0, KEY_NUM - 1);
-    bernoulli_distribution pw_distribution(0.95);
+    bernoulli_distribution pw_distribution(0.5);
     uniform_int_distribution<int> trans_distribution(0, 4);
     rand_val(1);
 
@@ -292,21 +292,21 @@ void *client_thread(void *arg) {
 
         for (int i = 0; i < trans_per_interval; i++) {
             /* YCSB workload */
-            // struct Request req;
-            // int number = distribution(generator);
-            // // int number = zipf(2.0, key_num);
-            // req.key = "key_" + to_string(number);
-            // req.value = "value_" + to_string(number);
-            // req.is_prep = false;
-            // if (pw_distribution(generator)) {
-            //     req.type = Request::Type::PUT;
-            // } else {
-            //     req.type = Request::Type::GET;
-            // }
-            // pthread_mutex_lock(&rq.mutex);
-            // rq.rq_queue.push(req);
-            // pthread_mutex_unlock(&rq.mutex);
-            // sem_post(&rq.full);
+            struct Request req;
+            int number = distribution(generator);
+            // int number = zipf(2.0, key_num);
+            req.key = "key_" + to_string(number);
+            req.value = "value_" + to_string(number);
+            req.is_prep = false;
+            if (pw_distribution(generator)) {
+                req.type = Request::Type::PUT;
+            } else {
+                req.type = Request::Type::GET;
+            }
+            pthread_mutex_lock(&rq.mutex);
+            rq.rq_queue.push(req);
+            pthread_mutex_unlock(&rq.mutex);
+            sem_post(&rq.full);
 
             /* machine learning workload */
             // struct Request req;
@@ -329,28 +329,28 @@ void *client_thread(void *arg) {
             // sem_post(&rq.full);
 
             /* smallbank workload */
-            struct Request req;
-            if (pw_distribution(generator)) {
-                int transaction = trans_distribution(generator);
-                if (transaction == 0) {
-                    req.type = Request::Type::TransactSavings;
-                } else if (transaction == 1) {
-                    req.type = Request::Type::DepositChecking;
-                } else if (transaction == 2) {
-                    req.type = Request::Type::SendPayment; 
-                } else if (transaction == 3) {
-                    req.type = Request::Type::WriteCheck;
-                } else if (transaction == 4) {
-                    req.type = Request::Type::Amalgamate;
-                }
-            } else {
-                req.type = Request::Type::Query;
-            }
-            req.is_prep = false;
-            pthread_mutex_lock(&rq.mutex);
-            rq.rq_queue.push(req);
-            pthread_mutex_unlock(&rq.mutex);
-            sem_post(&rq.full);
+            // struct Request req;
+            // if (pw_distribution(generator)) {
+            //     int transaction = trans_distribution(generator);
+            //     if (transaction == 0) {
+            //         req.type = Request::Type::TransactSavings;
+            //     } else if (transaction == 1) {
+            //         req.type = Request::Type::DepositChecking;
+            //     } else if (transaction == 2) {
+            //         req.type = Request::Type::SendPayment; 
+            //     } else if (transaction == 3) {
+            //         req.type = Request::Type::WriteCheck;
+            //     } else if (transaction == 4) {
+            //         req.type = Request::Type::Amalgamate;
+            //     }
+            // } else {
+            //     req.type = Request::Type::Query;
+            // }
+            // req.is_prep = false;
+            // pthread_mutex_lock(&rq.mutex);
+            // rq.rq_queue.push(req);
+            // pthread_mutex_unlock(&rq.mutex);
+            // sem_post(&rq.full);
         }
     }
     return NULL;
@@ -362,15 +362,15 @@ void prepopulate() {
 
     for (int i = KEY_NUM; i >= 0; i--) {
         /* prepopulate - YSCB workload */
-        // struct Request req;
-        // req.type = Request::Type::PUT;
-        // req.key = "key_" + to_string(i);
-        // req.value = "value_" + to_string(i);
-        // req.is_prep = true;
-        // pthread_mutex_lock(&rq.mutex);
-        // rq.rq_queue.push(req);
-        // pthread_mutex_unlock(&rq.mutex);
-        // sem_post(&rq.full);
+        struct Request req;
+        req.type = Request::Type::PUT;
+        req.key = "key_" + to_string(i);
+        req.value = "value_" + to_string(i);
+        req.is_prep = true;
+        pthread_mutex_lock(&rq.mutex);
+        rq.rq_queue.push(req);
+        pthread_mutex_unlock(&rq.mutex);
+        sem_post(&rq.full);
 
         /* prepopulate - machine learning workload */
         // struct Request req;
@@ -388,28 +388,28 @@ void prepopulate() {
         // sem_post(&rq.full);
 
         /* prepopulate - smallbank workload */
-        struct Request req;
-        req.type = Request::Type::PUT;
-        req.key = "checking_" + to_string(i);
-        uint64_t balance = distribution(generator);
-        char *buf = (char *)malloc(sizeof(uint64_t));
-        memcpy(buf, &balance, sizeof(uint64_t));
-        req.value = string(buf, sizeof(uint64_t));
-        req.is_prep = true;
-        pthread_mutex_lock(&rq.mutex);
-        rq.rq_queue.push(req);
-        pthread_mutex_unlock(&rq.mutex);
-        sem_post(&rq.full);
+        // struct Request req;
+        // req.type = Request::Type::PUT;
+        // req.key = "checking_" + to_string(i);
+        // uint64_t balance = distribution(generator);
+        // char *buf = (char *)malloc(sizeof(uint64_t));
+        // memcpy(buf, &balance, sizeof(uint64_t));
+        // req.value = string(buf, sizeof(uint64_t));
+        // req.is_prep = true;
+        // pthread_mutex_lock(&rq.mutex);
+        // rq.rq_queue.push(req);
+        // pthread_mutex_unlock(&rq.mutex);
+        // sem_post(&rq.full);
 
-        req.key = "saving_" + to_string(i);
-        balance = distribution(generator);
-        memcpy(buf, &balance, sizeof(uint64_t));
-        req.value = string(buf, sizeof(uint64_t));
-        free(buf);
-        pthread_mutex_lock(&rq.mutex);
-        rq.rq_queue.push(req);
-        pthread_mutex_unlock(&rq.mutex);
-        sem_post(&rq.full);
+        // req.key = "saving_" + to_string(i);
+        // balance = distribution(generator);
+        // memcpy(buf, &balance, sizeof(uint64_t));
+        // req.value = string(buf, sizeof(uint64_t));
+        // free(buf);
+        // pthread_mutex_lock(&rq.mutex);
+        // rq.rq_queue.push(req);
+        // pthread_mutex_unlock(&rq.mutex);
+        // sem_post(&rq.full);
     }
 
     sleep(5);

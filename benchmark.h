@@ -20,7 +20,7 @@ using namespace std;
 
 #define FALSE 0
 #define TRUE 1
-#define KEY_NUM 400000
+#define KEY_NUM 800000
 
 struct Request {
     enum Type {
@@ -64,6 +64,6 @@ int64_t benchmark_throughput(bool is_validator);
 int zipf(double alpha, int n);
 double rand_val(int seed);
 void kmeans(vector<int> &A, int K);
-string get_balance_str(uint64_t balance);
+string get_balance_str(uint64_t balance, size_t length);
 
 #endif
