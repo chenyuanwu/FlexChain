@@ -571,6 +571,9 @@ void *simulation_handler(void *arg) {
                 s_kv_put(proposal.key, proposal.value, endorsement);
             }
         } else if (proposal.type == Request::Type::KMEANS) {
+            default_random_engine generator;
+            uniform_int_distribution<int> distribution(0, KEY_NUM - 1);
+
             vector<int> A;
             int num_keys_per_trans = 60;
             for (int i = 0; i < num_keys_per_trans; i++) {
@@ -672,7 +675,7 @@ void *simulation_handler(void *arg) {
 /* validate and commit transactions (V stage) */
 bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_client, vector<ComputeCommClient> &compute_clients,
                           uint64_t block_id, uint64_t trans_id, const Endorsement &transaction) {
-    // log_info(stderr, "******validating transaction[block_id = %ld, trans_id = %ld, thread_id = %d]******",
+    // log_debug(logger_fp, "******validating transaction[block_id = %ld, trans_id = %ld, thread_id = %d]******",
     //           block_id, trans_id, ctx.thread_index);
     bool is_valid = true;
 
@@ -909,12 +912,12 @@ class ComputeCommImpl final : public ComputeComm::Service {
 };
 
 void run_server(const string &server_address, bool is_validator) {
-    std::filesystem::remove_all("./testdb");
+    std::filesystem::remove_all("/mydata/testdb");
 
     // options.create_if_missing = true;
     // options.error_if_exists = true;
-    // options.write_buffer_size = 4096000000;
-    // leveldb::Status s = leveldb::DB::Open(options, "./testdb", &db);
+    // options.write_buffer_size = 8192000000;
+    // leveldb::Status s = leveldb::DB::Open(options, "/mydata/testdb", &db);
     // assert(s.ok());
 
     /* start the grpc server for ComputeComm service */
@@ -981,6 +984,7 @@ void run_server(const string &server_address, bool is_validator) {
     }
 
     /* microbenchmark logics */
+    // test_get_only();
     if (is_validator) {
         prepopulate();
         for (int i = 0; i < compute_clients.size(); i++) {
@@ -992,7 +996,6 @@ void run_server(const string &server_address, bool is_validator) {
         ;
 
     uint64_t time = benchmark_throughput(is_validator);
-    // test_get_only();
 
     /* output stats */
     void *status;
@@ -1002,8 +1005,8 @@ void run_server(const string &server_address, bool is_validator) {
 
     log_info(stderr, "throughput = %f /seconds.", ((float)total_ops.load() / time) * 1000);
     log_info(stderr, "abort rate = %f.", ((float)abort_count.load() / ((float)total_ops.load() + (float)abort_count.load())) * 100);
-    // log_info(stderr, "cache hit ratio = %f.", ((float)cache_hit.load() / (float)cache_total.load()) * 100);
-    // log_info(stderr, "sstable ratio = %f.", ((float)sst_count.load() / (float)cache_total.load()) * 100);
+    log_info(stderr, "cache hit ratio = %f.", ((float)cache_hit.load() / (float)cache_total.load()) * 100);
+    log_info(stderr, "sstable ratio = %f.", ((float)sst_count.load() / (float)cache_total.load()) * 100);
 
     // pthread_join(validation_manager_tid, &status);
     pthread_join(bg_tid, &status);
