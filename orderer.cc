@@ -58,67 +58,51 @@ void *log_replication_thread(void *arg) {
     }
 }
 
-bool has_rw_conflicts(const Endorsement &target_trans, const Endorsement &current_trans) {
-    unordered_map<string, int> key_to_index;
-    int index = 0;
-    bool has_conflicts = false;
-
-    for (int i = 0; i < target_trans.read_set_size(); i++) {
-        key_to_index[target_trans.read_set(i).read_key()] = index++;
-    }
-
-    if (!key_to_index.empty()) {
-        for (int i = 0; i < current_trans.write_set_size(); i++) {
-            if (key_to_index.find(current_trans.write_set(i).write_key()) != key_to_index.end()) {
+bool has_rw_conflicts(int target_trans, int current_trans,
+                      const vector<unordered_set<string>> &read_sets, const vector<unordered_set<string>> &write_sets) {
+    if (read_sets[target_trans].size() == 0 || write_sets[current_trans].size() == 0) {
+        return false;
+    } else {
+        bool has_conflicts = false;
+        for (auto it = write_sets[current_trans].begin(); it != write_sets[current_trans].end(); it++) {
+            if (read_sets[target_trans].find(*it) != read_sets[target_trans].end()) {
                 has_conflicts = true;
                 break;
             }
         }
+        return has_conflicts;
     }
-
-    return has_conflicts;
 }
 
-bool has_ww_conflicts(const Endorsement &target_trans, const Endorsement &current_trans) {
-    unordered_map<string, int> key_to_index;
-    int index = 0;
-    bool has_conflicts = false;
-
-    for (int i = 0; i < target_trans.write_set_size(); i++) {
-        key_to_index[target_trans.write_set(i).write_key()] = index++;
-    }
-
-    if (!key_to_index.empty()) {
-        for (int i = 0; i < current_trans.write_set_size(); i++) {
-            if (key_to_index.find(current_trans.write_set(i).write_key()) != key_to_index.end()) {
+bool has_ww_conflicts(int target_trans, int current_trans, const vector<unordered_set<string>> &write_sets) {
+    if (write_sets[target_trans].size() == 0 || write_sets[current_trans].size() == 0) {
+        return false;
+    } else {
+        bool has_conflicts = false;
+        for (auto it = write_sets[current_trans].begin(); it != write_sets[current_trans].end(); it++) {
+            if (write_sets[target_trans].find(*it) != write_sets[target_trans].end()) {
                 has_conflicts = true;
                 break;
             }
         }
+        return has_conflicts;
     }
-
-    return has_conflicts;
 }
 
-bool has_wr_conflicts(const Endorsement &target_trans, const Endorsement &current_trans) {
-    unordered_map<string, int> key_to_index;
-    int index = 0;
-    bool has_conflicts = false;
-
-    for (int i = 0; i < target_trans.write_set_size(); i++) {
-        key_to_index[target_trans.write_set(i).write_key()] = index++;
-    }
-
-    if (!key_to_index.empty()) {
-        for (int i = 0; i < current_trans.read_set_size(); i++) {
-            if (key_to_index.find(current_trans.read_set(i).read_key()) != key_to_index.end()) {
+bool has_wr_conflicts(int target_trans, int current_trans,
+                      const vector<unordered_set<string>> &read_sets, const vector<unordered_set<string>> &write_sets) {
+    if (write_sets[target_trans].size() == 0 || read_sets[current_trans].size() == 0) {
+        return false;
+    } else {
+        bool has_conflicts = false;
+        for (auto it = write_sets[target_trans].begin(); it != write_sets[target_trans].end(); it++) {
+            if (read_sets[current_trans].find(*it) != read_sets[current_trans].end()) {
                 has_conflicts = true;
                 break;
             }
         }
+        return has_conflicts;
     }
-
-    return has_conflicts;
 }
 
 void *block_formation_thread(void *arg) {
@@ -159,6 +143,8 @@ void *block_formation_thread(void *arg) {
 
     Block block;
     google::protobuf::Empty rsp;
+    vector<unordered_set<string>> read_sets;
+    vector<unordered_set<string>> write_sets;
 
     while (!end_flag) {
         if (role == LEADER) {
@@ -194,13 +180,24 @@ void *block_formation_thread(void *arg) {
             }
             local_ops++;
 
+            unordered_set<string> read_set;
+            unordered_set<string> write_set;
+            for (int i = 0; i < transaction->read_set_size(); i++) {
+                read_set.insert(transaction->read_set(i).read_key());
+            }
+            for (int i = 0; i < transaction->write_set_size(); i++) {
+                write_set.insert(transaction->write_set(i).write_key());
+            }
+            read_sets.push_back(read_set);
+            write_sets.push_back(write_set);
+
             transaction->clear_adjacency_list();
             for (int target_index = 0; target_index < trans_index; target_index++) {
                 /* check read-write write-write write-read conflict */
-                if (has_rw_conflicts(block.transactions(target_index), block.transactions(trans_index)) ||
-                    has_ww_conflicts(block.transactions(target_index), block.transactions(trans_index)) ||
-                    has_wr_conflicts(block.transactions(target_index), block.transactions(trans_index))) {
-                        transaction->add_adjacency_list(target_index);
+                if (has_rw_conflicts(target_index, trans_index, read_sets, write_sets) ||
+                    has_ww_conflicts(target_index, trans_index, write_sets) ||
+                    has_wr_conflicts(target_index, trans_index, read_sets, write_sets)) {
+                    transaction->add_adjacency_list(target_index);
                 }
             }
             trans_index++;
@@ -227,6 +224,9 @@ void *block_formation_thread(void *arg) {
 
                 block.clear_block_id();
                 block.clear_transactions();
+
+                read_sets.clear();
+                write_sets.clear();
             }
         }
     }
