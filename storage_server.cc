@@ -105,7 +105,7 @@ void run_server(const std::string& db_name, const std::string& server_address) {
 
 int main(int argc, char* argv[]) {
     int opt;
-    std::string db_name = "./testdb";
+    std::string db_name = "/mydata/testdb";
     std::string server_address = "0.0.0.0:50051";
 
     while ((opt = getopt(argc, argv, "ha:d:")) != -1) {
