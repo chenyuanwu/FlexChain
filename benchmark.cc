@@ -283,8 +283,10 @@ void *client_thread(void *arg) {
     int interval = 50000;
 
     default_random_engine generator;
-    uniform_int_distribution<int> distribution(0, KEY_NUM - 1);
-    bernoulli_distribution pw_distribution(0.95);
+    uniform_int_distribution<int> ycsb_distribution(0, YCSB_KEY_NUM - 1);
+    bernoulli_distribution ycsb_pw_distribution(0.5);
+    uniform_int_distribution<int> kmeans_distribution(0, KMEANS_KEY_NUM - 1);
+    bernoulli_distribution kmeans_pw_distribution(0.95);
     uniform_int_distribution<int> trans_distribution(0, 4);
     rand_val(1);
 
@@ -293,39 +295,39 @@ void *client_thread(void *arg) {
 
         for (int i = 0; i < trans_per_interval; i++) {
             /* YCSB workload */
-            // struct Request req;
-            // int number = distribution(generator);
-            // // int number = zipf(2.0, key_num);
-            // req.key = "key_" + to_string(number);
-            // req.value = "value_" + to_string(number);
-            // req.is_prep = false;
-            // if (pw_distribution(generator)) {
-            //     req.type = Request::Type::PUT;
-            // } else {
-            //     req.type = Request::Type::GET;
-            // }
-            // pthread_mutex_lock(&rq.mutex);
-            // rq.rq_queue.push(req);
-            // pthread_mutex_unlock(&rq.mutex);
-            // sem_post(&rq.full);
+            struct Request req1;
+            int number = ycsb_distribution(generator);
+            // int number = zipf(2.0, key_num);
+            req1.key = "key_y_" + to_string(number);
+            req1.value = "value_" + to_string(number);
+            req1.is_prep = false;
+            if (ycsb_pw_distribution(generator)) {
+                req1.type = Request::Type::PUT;
+            } else {
+                req1.type = Request::Type::GET;
+            }
+            pthread_mutex_lock(&rq.mutex);
+            rq.rq_queue.push(req1);
+            pthread_mutex_unlock(&rq.mutex);
+            sem_post(&rq.full);
 
             /* machine learning workload */
-            struct Request req;
-            if (pw_distribution(generator)) {
-                req.type = Request::Type::KMEANS;
+            struct Request req2;
+            if (kmeans_pw_distribution(generator)) {
+                req2.type = Request::Type::KMEANS;
             } else {
-                req.type = Request::Type::PUT;
-                int key_number = distribution(generator);
-                req.key = "key_" + to_string(key_number);
-                uint64_t val_number = distribution(generator);
+                req2.type = Request::Type::PUT;
+                int key_number = kmeans_distribution(generator);
+                req2.key = "key_k_" + to_string(key_number);
+                uint64_t val_number = kmeans_distribution(generator);
                 char *buf = (char *)malloc(sizeof(uint64_t));
                 memcpy(buf, &val_number, sizeof(uint64_t));
-                req.value = string(buf, sizeof(uint64_t));
+                req2.value = string(buf, sizeof(uint64_t));
                 free(buf);
             }
-            req.is_prep = false;
+            req2.is_prep = false;
             pthread_mutex_lock(&rq.mutex);
-            rq.rq_queue.push(req);
+            rq.rq_queue.push(req2);
             pthread_mutex_unlock(&rq.mutex);
             sem_post(&rq.full);
 
@@ -359,34 +361,34 @@ void *client_thread(void *arg) {
 
 void prepopulate() {
     default_random_engine generator;
-    uniform_int_distribution<int> distribution(0, KEY_NUM - 1);
+    uniform_int_distribution<int> distribution(0, KMEANS_KEY_NUM - 1);
 
-    for (int i = KEY_NUM; i >= 0; i--) {
+    for (int i = YCSB_KEY_NUM; i >= 0; i--) {
         /* prepopulate - YSCB workload */
-        // struct Request req;
-        // req.type = Request::Type::PUT;
-        // req.key = "key_" + to_string(i);
-        // req.value = "value_" + to_string(i);
-        // req.is_prep = true;
-        // pthread_mutex_lock(&rq.mutex);
-        // rq.rq_queue.push(req);
-        // pthread_mutex_unlock(&rq.mutex);
-        // sem_post(&rq.full);
-
-        /* prepopulate - machine learning workload */
         struct Request req;
         req.type = Request::Type::PUT;
-        req.key = "key_" + to_string(i);
-        uint64_t val_number = distribution(generator);
-        char *buf = (char *)malloc(sizeof(uint64_t));
-        memcpy(buf, &val_number, sizeof(uint64_t));
-        req.value = string(buf, sizeof(uint64_t));
-        free(buf);
+        req.key = "key_y_" + to_string(i);
+        req.value = "value_" + to_string(i);
         req.is_prep = true;
         pthread_mutex_lock(&rq.mutex);
         rq.rq_queue.push(req);
         pthread_mutex_unlock(&rq.mutex);
         sem_post(&rq.full);
+
+        /* prepopulate - machine learning workload */
+        // struct Request req;
+        // req.type = Request::Type::PUT;
+        // req.key = "key_" + to_string(i);
+        // uint64_t val_number = distribution(generator);
+        // char *buf = (char *)malloc(sizeof(uint64_t));
+        // memcpy(buf, &val_number, sizeof(uint64_t));
+        // req.value = string(buf, sizeof(uint64_t));
+        // free(buf);
+        // req.is_prep = true;
+        // pthread_mutex_lock(&rq.mutex);
+        // rq.rq_queue.push(req);
+        // pthread_mutex_unlock(&rq.mutex);
+        // sem_post(&rq.full);
 
         /* prepopulate - smallbank workload */
         // struct Request req;
@@ -411,6 +413,23 @@ void prepopulate() {
         // rq.rq_queue.push(req);
         // pthread_mutex_unlock(&rq.mutex);
         // sem_post(&rq.full);
+    }
+
+    for (int i = KMEANS_KEY_NUM; i >= 0; i--) {
+        /* prepopulate - machine learning workload */
+        struct Request req;
+        req.type = Request::Type::PUT;
+        req.key = "key_k_" + to_string(i);
+        uint64_t val_number = distribution(generator);
+        char *buf = (char *)malloc(sizeof(uint64_t));
+        memcpy(buf, &val_number, sizeof(uint64_t));
+        req.value = string(buf, sizeof(uint64_t));
+        free(buf);
+        req.is_prep = true;
+        pthread_mutex_lock(&rq.mutex);
+        rq.rq_queue.push(req);
+        pthread_mutex_unlock(&rq.mutex);
+        sem_post(&rq.full);
     }
 
     sleep(5);

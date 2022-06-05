@@ -480,7 +480,7 @@ void *simulation_handler(void *arg) {
     vector<ComputeCommClient> compute_clients;
 
     default_random_engine generator;
-    uniform_int_distribution<int> distribution(0, KEY_NUM - 1);
+    uniform_int_distribution<int> distribution(0, BANK_KEY_NUM - 1);
 
     char *buf = (char *)malloc(c_config_info.data_msg_size);
     long local_ops = 0;
@@ -572,13 +572,13 @@ void *simulation_handler(void *arg) {
             }
         } else if (proposal.type == Request::Type::KMEANS) {
             default_random_engine generator;
-            uniform_int_distribution<int> distribution(0, KEY_NUM - 1);
+            uniform_int_distribution<int> distribution(0, KMEANS_KEY_NUM - 1);
 
             vector<int> A;
             int num_keys_per_trans = 60;
             for (int i = 0; i < num_keys_per_trans; i++) {
                 int random_number = distribution(generator);
-                string key = "key_" + to_string(random_number);
+                string key = "key_k_" + to_string(random_number);
                 string value = s_kv_get(ctx, storage_client, key, endorsement);
                 uint64_t data;
                 memcpy(&data, value.c_str(), sizeof(uint64_t));

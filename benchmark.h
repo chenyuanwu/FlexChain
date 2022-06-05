@@ -20,7 +20,9 @@ using namespace std;
 
 #define FALSE 0
 #define TRUE 1
-#define KEY_NUM 800000
+#define YCSB_KEY_NUM 4000000
+#define KMEANS_KEY_NUM 400000
+#define BANK_KEY_NUM 2000000
 
 struct Request {
     enum Type {
