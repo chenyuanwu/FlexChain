@@ -282,9 +282,9 @@ int kv_put(struct ThreadContext &ctx, vector<ComputeCommClient> &compute_clients
     log_debug(stderr, "kv_put[thread_index = %d, key = %s]: local caches are updated.", ctx.thread_index, key.c_str());
 
     /* invalidate all CNs' caches including itself */
-    for (int i = 0; i < compute_clients.size(); i++) {
-        compute_clients[i].invalidate_cn(key);
-    }
+    // for (int i = 0; i < compute_clients.size(); i++) {
+    //     compute_clients[i].invalidate_cn(key);
+    // }
 
     return 0;
 }
@@ -479,6 +479,14 @@ void *simulation_handler(void *arg) {
     /* set up grpc client for other compute servers (dummy clients here) */
     vector<ComputeCommClient> compute_clients;
 
+    ClientContext context;
+    google::protobuf::Empty rsp;
+    CompletionQueue cq;
+    unique_ptr<ClientAsyncWriter<Endorsement>> orderer_stream(orderer_stub->Asyncsend_to_leader_stream(&context, &rsp, &cq, (void *)1));
+    bool ok;
+    void *got_tag;
+    cq.Next(&got_tag, &ok);
+
     default_random_engine generator;
     uniform_int_distribution<int> distribution(0, BANK_KEY_NUM - 1);
 
@@ -492,9 +500,9 @@ void *simulation_handler(void *arg) {
         rq.rq_queue.pop();
         pthread_mutex_unlock(&rq.mutex);
 
-        ClientContext context;
+        // ClientContext context;
+        // google::protobuf::Empty rsp;
         Endorsement endorsement;
-        google::protobuf::Empty rsp;
 
         size_t meta_data_size = sizeof(uint64_t) * 2 + sizeof(uint8_t) + sizeof(uint32_t) + proposal.key.length() + 2 * sizeof(uint64_t);
         // size_t meta_data_size = 2 * sizeof(uint64_t);
@@ -662,12 +670,20 @@ void *simulation_handler(void *arg) {
         }
 
         /* send the generated endorsement to the client/orderer */
-        Status status = orderer_stub->send_to_leader(&context, endorsement, &rsp);
-        if (!status.ok()) {
-            log_err("gRPC failed with error message: %s.", status.error_message().c_str());
-        }
+        orderer_stream->Write(endorsement, (void *)1);
+        bool ok;
+        void *got_tag;
+        // cq.AsyncNext(&got_tag, &ok, gpr_time_0(GPR_CLOCK_REALTIME));
+        cq.Next(&got_tag, &ok);
+
+        // orderer_stub->async()->send_to_leader(&context, &endorsement, &rsp, [](Status s) {});
+        // Status status = orderer_stub->send_to_leader(&context, endorsement, &rsp);
+        // if (!status.ok()) {
+        //     log_err("gRPC failed with error message: %s.", status.error_message().c_str());
+        // }
+
+        // total_ops++;
     }
-    // total_ops += local_ops;
     free(buf);
     return NULL;
 }
@@ -725,13 +741,12 @@ bool validate_transaction(struct ThreadContext &ctx, KVStableClient &storage_cli
         }
         free(ver);
         // log_debug(logger_fp, "transaction is committed.\n");
-        if (warmup_completed) {
-            total_ops++;
-        }
+
+        total_ops++;
+
     } else {
-        if (warmup_completed) {
-            abort_count++;
-        }
+        abort_count++;
+
         // log_debug(logger_fp, "transaction is aborted: found stale read version.\n");
     }
     return is_valid;
@@ -877,6 +892,20 @@ class ComputeCommImpl final : public ComputeComm::Service {
         return Status::OK;
     }
 
+    Status send_to_validator_stream(ServerContext *context, ServerReader<Block> *reader, google::protobuf::Empty *response) override {
+        Block block;
+
+        while (reader->Read(&block)) {
+            pthread_mutex_lock(&bq.mutex);
+            bq.bq_queue.push(block);
+            pthread_mutex_unlock(&bq.mutex);
+            sem_post(&bq.full);
+            // total_ops += block.transactions_size();
+        }
+
+        return Status::OK;
+    }
+
     Status invalidate_cn(ServerContext *context, const InvalidationRequest *request, google::protobuf::Empty *response) override {
         string key = request->key_to_inval();
         pthread_mutex_lock(&metadatacache.hashtable_lock);
@@ -985,8 +1014,8 @@ void run_server(const string &server_address, bool is_validator) {
 
     /* microbenchmark logics */
     // test_get_only();
+    prepopulate();
     if (is_validator) {
-        prepopulate();
         for (int i = 0; i < compute_clients.size(); i++) {
             compute_clients[i].start_benchmarking();
         }

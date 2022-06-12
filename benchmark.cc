@@ -279,7 +279,7 @@ string get_balance_str(uint64_t balance, size_t length) {
 }
 
 void *client_thread(void *arg) {
-    int trans_per_interval = 1000;
+    int trans_per_interval = 500;
     int interval = 50000;
 
     default_random_engine generator;
@@ -312,24 +312,24 @@ void *client_thread(void *arg) {
             sem_post(&rq.full);
 
             /* machine learning workload */
-            struct Request req2;
-            if (kmeans_pw_distribution(generator)) {
-                req2.type = Request::Type::KMEANS;
-            } else {
-                req2.type = Request::Type::PUT;
-                int key_number = kmeans_distribution(generator);
-                req2.key = "key_k_" + to_string(key_number);
-                uint64_t val_number = kmeans_distribution(generator);
-                char *buf = (char *)malloc(sizeof(uint64_t));
-                memcpy(buf, &val_number, sizeof(uint64_t));
-                req2.value = string(buf, sizeof(uint64_t));
-                free(buf);
-            }
-            req2.is_prep = false;
-            pthread_mutex_lock(&rq.mutex);
-            rq.rq_queue.push(req2);
-            pthread_mutex_unlock(&rq.mutex);
-            sem_post(&rq.full);
+            // struct Request req2;
+            // if (kmeans_pw_distribution(generator)) {
+            //     req2.type = Request::Type::KMEANS;
+            // } else {
+            //     req2.type = Request::Type::PUT;
+            //     int key_number = kmeans_distribution(generator);
+            //     req2.key = "key_k_" + to_string(key_number);
+            //     uint64_t val_number = kmeans_distribution(generator);
+            //     char *buf = (char *)malloc(sizeof(uint64_t));
+            //     memcpy(buf, &val_number, sizeof(uint64_t));
+            //     req2.value = string(buf, sizeof(uint64_t));
+            //     free(buf);
+            // }
+            // req2.is_prep = false;
+            // pthread_mutex_lock(&rq.mutex);
+            // rq.rq_queue.push(req2);
+            // pthread_mutex_unlock(&rq.mutex);
+            // sem_post(&rq.full);
 
             /* smallbank workload */
             // struct Request req;
@@ -415,22 +415,22 @@ void prepopulate() {
         // sem_post(&rq.full);
     }
 
-    for (int i = KMEANS_KEY_NUM; i >= 0; i--) {
-        /* prepopulate - machine learning workload */
-        struct Request req;
-        req.type = Request::Type::PUT;
-        req.key = "key_k_" + to_string(i);
-        uint64_t val_number = distribution(generator);
-        char *buf = (char *)malloc(sizeof(uint64_t));
-        memcpy(buf, &val_number, sizeof(uint64_t));
-        req.value = string(buf, sizeof(uint64_t));
-        free(buf);
-        req.is_prep = true;
-        pthread_mutex_lock(&rq.mutex);
-        rq.rq_queue.push(req);
-        pthread_mutex_unlock(&rq.mutex);
-        sem_post(&rq.full);
-    }
+    // for (int i = KMEANS_KEY_NUM; i >= 0; i--) {
+    //     /* prepopulate - machine learning workload */
+    //     struct Request req;
+    //     req.type = Request::Type::PUT;
+    //     req.key = "key_k_" + to_string(i);
+    //     uint64_t val_number = distribution(generator);
+    //     char *buf = (char *)malloc(sizeof(uint64_t));
+    //     memcpy(buf, &val_number, sizeof(uint64_t));
+    //     req.value = string(buf, sizeof(uint64_t));
+    //     free(buf);
+    //     req.is_prep = true;
+    //     pthread_mutex_lock(&rq.mutex);
+    //     rq.rq_queue.push(req);
+    //     pthread_mutex_unlock(&rq.mutex);
+    //     sem_post(&rq.full);
+    // }
 
     sleep(5);
 
@@ -444,17 +444,17 @@ int64_t benchmark_throughput(bool is_validator) {
     pthread_t client_tid;
     pthread_create(&client_tid, NULL, client_thread, NULL);
 
-    if (is_validator) {
-        sleep(2);
-        warmup_completed = true;
-    }
+    // if (is_validator) {
+    //     sleep(2);
+    //     warmup_completed = true;
+    // }
 
     chrono::milliseconds before, after;
     before = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch());
     if (is_validator) {
         sleep(10);
     } else {
-        sleep(14);
+        sleep(10);
     }
     
     end_flag = 1;

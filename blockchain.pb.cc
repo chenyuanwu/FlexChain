@@ -227,23 +227,26 @@ const char descriptor_table_protodef_blockchain_2eproto[] PROTOBUF_SECTION_VARIA
   "rser_signature\030\005 \001(\014\022\026\n\016adjacency_list\030\006"
   " \003(\004\"=\n\005Block\022\"\n\014transactions\030\001 \003(\0132\014.En"
   "dorsement\022\020\n\010block_id\030\002 \001(\004\"+\n\023Invalidat"
-  "ionRequest\022\024\n\014key_to_inval\030\001 \001(\t2~\n\rCons"
-  "ensusComm\0223\n\016append_entries\022\016.AppendRequ"
-  "est\032\017.AppendResponse\"\000\0228\n\016send_to_leader"
-  "\022\014.Endorsement\032\026.google.protobuf.Empty\"\000"
-  "2\304\001\n\013ComputeComm\0225\n\021send_to_validator\022\006."
-  "Block\032\026.google.protobuf.Empty\"\000\022\?\n\rinval"
-  "idate_cn\022\024.InvalidationRequest\032\026.google."
-  "protobuf.Empty\"\000\022=\n\022start_benchmarking\022\r"
-  ".Notification\032\026.google.protobuf.Empty\"\000b"
-  "\006proto3"
+  "ionRequest\022\024\n\014key_to_inval\030\001 \001(\t2\301\001\n\rCon"
+  "sensusComm\0223\n\016append_entries\022\016.AppendReq"
+  "uest\032\017.AppendResponse\"\000\0228\n\016send_to_leade"
+  "r\022\014.Endorsement\032\026.google.protobuf.Empty\""
+  "\000\022A\n\025send_to_leader_stream\022\014.Endorsement"
+  "\032\026.google.protobuf.Empty\"\000(\0012\204\002\n\013Compute"
+  "Comm\0225\n\021send_to_validator\022\006.Block\032\026.goog"
+  "le.protobuf.Empty\"\000\022>\n\030send_to_validator"
+  "_stream\022\006.Block\032\026.google.protobuf.Empty\""
+  "\000(\001\022\?\n\rinvalidate_cn\022\024.InvalidationReque"
+  "st\032\026.google.protobuf.Empty\"\000\022=\n\022start_be"
+  "nchmarking\022\r.Notification\032\026.google.proto"
+  "buf.Empty\"\000b\006proto3"
   ;
 static const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable*const descriptor_table_blockchain_2eproto_deps[1] = {
   &::descriptor_table_google_2fprotobuf_2fempty_2eproto,
 };
 static ::PROTOBUF_NAMESPACE_ID::internal::once_flag descriptor_table_blockchain_2eproto_once;
 const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable descriptor_table_blockchain_2eproto = {
-  false, false, 887, descriptor_table_protodef_blockchain_2eproto, "blockchain.proto", 
+  false, false, 1019, descriptor_table_protodef_blockchain_2eproto, "blockchain.proto", 
   &descriptor_table_blockchain_2eproto_once, descriptor_table_blockchain_2eproto_deps, 1, 8,
   schemas, file_default_instances, TableStruct_blockchain_2eproto::offsets,
   file_level_metadata_blockchain_2eproto, file_level_enum_descriptors_blockchain_2eproto, file_level_service_descriptors_blockchain_2eproto,

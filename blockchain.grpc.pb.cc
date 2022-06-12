@@ -23,6 +23,7 @@
 static const char* ConsensusComm_method_names[] = {
   "/ConsensusComm/append_entries",
   "/ConsensusComm/send_to_leader",
+  "/ConsensusComm/send_to_leader_stream",
 };
 
 std::unique_ptr< ConsensusComm::Stub> ConsensusComm::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -34,6 +35,7 @@ std::unique_ptr< ConsensusComm::Stub> ConsensusComm::NewStub(const std::shared_p
 ConsensusComm::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options)
   : channel_(channel), rpcmethod_append_entries_(ConsensusComm_method_names[0], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_send_to_leader_(ConsensusComm_method_names[1], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_send_to_leader_stream_(ConsensusComm_method_names[2], options.suffix_for_stats(),::grpc::internal::RpcMethod::CLIENT_STREAMING, channel)
   {}
 
 ::grpc::Status ConsensusComm::Stub::append_entries(::grpc::ClientContext* context, const ::AppendRequest& request, ::AppendResponse* response) {
@@ -82,6 +84,22 @@ void ConsensusComm::Stub::async::send_to_leader(::grpc::ClientContext* context, 
   return result;
 }
 
+::grpc::ClientWriter< ::Endorsement>* ConsensusComm::Stub::send_to_leader_streamRaw(::grpc::ClientContext* context, ::google::protobuf::Empty* response) {
+  return ::grpc::internal::ClientWriterFactory< ::Endorsement>::Create(channel_.get(), rpcmethod_send_to_leader_stream_, context, response);
+}
+
+void ConsensusComm::Stub::async::send_to_leader_stream(::grpc::ClientContext* context, ::google::protobuf::Empty* response, ::grpc::ClientWriteReactor< ::Endorsement>* reactor) {
+  ::grpc::internal::ClientCallbackWriterFactory< ::Endorsement>::Create(stub_->channel_.get(), stub_->rpcmethod_send_to_leader_stream_, context, response, reactor);
+}
+
+::grpc::ClientAsyncWriter< ::Endorsement>* ConsensusComm::Stub::Asyncsend_to_leader_streamRaw(::grpc::ClientContext* context, ::google::protobuf::Empty* response, ::grpc::CompletionQueue* cq, void* tag) {
+  return ::grpc::internal::ClientAsyncWriterFactory< ::Endorsement>::Create(channel_.get(), cq, rpcmethod_send_to_leader_stream_, context, response, true, tag);
+}
+
+::grpc::ClientAsyncWriter< ::Endorsement>* ConsensusComm::Stub::PrepareAsyncsend_to_leader_streamRaw(::grpc::ClientContext* context, ::google::protobuf::Empty* response, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncWriterFactory< ::Endorsement>::Create(channel_.get(), cq, rpcmethod_send_to_leader_stream_, context, response, false, nullptr);
+}
+
 ConsensusComm::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       ConsensusComm_method_names[0],
@@ -103,6 +121,16 @@ ConsensusComm::Service::Service() {
              ::google::protobuf::Empty* resp) {
                return service->send_to_leader(ctx, req, resp);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      ConsensusComm_method_names[2],
+      ::grpc::internal::RpcMethod::CLIENT_STREAMING,
+      new ::grpc::internal::ClientStreamingHandler< ConsensusComm::Service, ::Endorsement, ::google::protobuf::Empty>(
+          [](ConsensusComm::Service* service,
+             ::grpc::ServerContext* ctx,
+             ::grpc::ServerReader<::Endorsement>* reader,
+             ::google::protobuf::Empty* resp) {
+               return service->send_to_leader_stream(ctx, reader, resp);
+             }, this)));
 }
 
 ConsensusComm::Service::~Service() {
@@ -122,9 +150,17 @@ ConsensusComm::Service::~Service() {
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }
 
+::grpc::Status ConsensusComm::Service::send_to_leader_stream(::grpc::ServerContext* context, ::grpc::ServerReader< ::Endorsement>* reader, ::google::protobuf::Empty* response) {
+  (void) context;
+  (void) reader;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
 
 static const char* ComputeComm_method_names[] = {
   "/ComputeComm/send_to_validator",
+  "/ComputeComm/send_to_validator_stream",
   "/ComputeComm/invalidate_cn",
   "/ComputeComm/start_benchmarking",
 };
@@ -137,8 +173,9 @@ std::unique_ptr< ComputeComm::Stub> ComputeComm::NewStub(const std::shared_ptr< 
 
 ComputeComm::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options)
   : channel_(channel), rpcmethod_send_to_validator_(ComputeComm_method_names[0], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_invalidate_cn_(ComputeComm_method_names[1], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
-  , rpcmethod_start_benchmarking_(ComputeComm_method_names[2], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_send_to_validator_stream_(ComputeComm_method_names[1], options.suffix_for_stats(),::grpc::internal::RpcMethod::CLIENT_STREAMING, channel)
+  , rpcmethod_invalidate_cn_(ComputeComm_method_names[2], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_start_benchmarking_(ComputeComm_method_names[3], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
 
 ::grpc::Status ComputeComm::Stub::send_to_validator(::grpc::ClientContext* context, const ::Block& request, ::google::protobuf::Empty* response) {
@@ -162,6 +199,22 @@ void ComputeComm::Stub::async::send_to_validator(::grpc::ClientContext* context,
     this->PrepareAsyncsend_to_validatorRaw(context, request, cq);
   result->StartCall();
   return result;
+}
+
+::grpc::ClientWriter< ::Block>* ComputeComm::Stub::send_to_validator_streamRaw(::grpc::ClientContext* context, ::google::protobuf::Empty* response) {
+  return ::grpc::internal::ClientWriterFactory< ::Block>::Create(channel_.get(), rpcmethod_send_to_validator_stream_, context, response);
+}
+
+void ComputeComm::Stub::async::send_to_validator_stream(::grpc::ClientContext* context, ::google::protobuf::Empty* response, ::grpc::ClientWriteReactor< ::Block>* reactor) {
+  ::grpc::internal::ClientCallbackWriterFactory< ::Block>::Create(stub_->channel_.get(), stub_->rpcmethod_send_to_validator_stream_, context, response, reactor);
+}
+
+::grpc::ClientAsyncWriter< ::Block>* ComputeComm::Stub::Asyncsend_to_validator_streamRaw(::grpc::ClientContext* context, ::google::protobuf::Empty* response, ::grpc::CompletionQueue* cq, void* tag) {
+  return ::grpc::internal::ClientAsyncWriterFactory< ::Block>::Create(channel_.get(), cq, rpcmethod_send_to_validator_stream_, context, response, true, tag);
+}
+
+::grpc::ClientAsyncWriter< ::Block>* ComputeComm::Stub::PrepareAsyncsend_to_validator_streamRaw(::grpc::ClientContext* context, ::google::protobuf::Empty* response, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncWriterFactory< ::Block>::Create(channel_.get(), cq, rpcmethod_send_to_validator_stream_, context, response, false, nullptr);
 }
 
 ::grpc::Status ComputeComm::Stub::invalidate_cn(::grpc::ClientContext* context, const ::InvalidationRequest& request, ::google::protobuf::Empty* response) {
@@ -223,6 +276,16 @@ ComputeComm::Service::Service() {
              }, this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       ComputeComm_method_names[1],
+      ::grpc::internal::RpcMethod::CLIENT_STREAMING,
+      new ::grpc::internal::ClientStreamingHandler< ComputeComm::Service, ::Block, ::google::protobuf::Empty>(
+          [](ComputeComm::Service* service,
+             ::grpc::ServerContext* ctx,
+             ::grpc::ServerReader<::Block>* reader,
+             ::google::protobuf::Empty* resp) {
+               return service->send_to_validator_stream(ctx, reader, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      ComputeComm_method_names[2],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< ComputeComm::Service, ::InvalidationRequest, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
           [](ComputeComm::Service* service,
@@ -232,7 +295,7 @@ ComputeComm::Service::Service() {
                return service->invalidate_cn(ctx, req, resp);
              }, this)));
   AddMethod(new ::grpc::internal::RpcServiceMethod(
-      ComputeComm_method_names[2],
+      ComputeComm_method_names[3],
       ::grpc::internal::RpcMethod::NORMAL_RPC,
       new ::grpc::internal::RpcMethodHandler< ComputeComm::Service, ::Notification, ::google::protobuf::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
           [](ComputeComm::Service* service,
@@ -249,6 +312,13 @@ ComputeComm::Service::~Service() {
 ::grpc::Status ComputeComm::Service::send_to_validator(::grpc::ServerContext* context, const ::Block* request, ::google::protobuf::Empty* response) {
   (void) context;
   (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status ComputeComm::Service::send_to_validator_stream(::grpc::ServerContext* context, ::grpc::ServerReader< ::Block>* reader, ::google::protobuf::Empty* response) {
+  (void) context;
+  (void) reader;
   (void) response;
   return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
 }

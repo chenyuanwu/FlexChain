@@ -4,10 +4,12 @@ import "google/protobuf/empty.proto";
 service ConsensusComm {
     rpc append_entries (AppendRequest) returns (AppendResponse) {}
     rpc send_to_leader (Endorsement) returns (google.protobuf.Empty) {}
+    rpc send_to_leader_stream (stream Endorsement) returns (google.protobuf.Empty) {}
 }
 
 service ComputeComm {
     rpc send_to_validator (Block) returns (google.protobuf.Empty) {} // used by orderer nodes
+    rpc send_to_validator_stream (stream Block) returns (google.protobuf.Empty) {}
     rpc invalidate_cn (InvalidationRequest) returns (google.protobuf.Empty) {} 
     rpc start_benchmarking (Notification) returns (google.protobuf.Empty) {}
 }
