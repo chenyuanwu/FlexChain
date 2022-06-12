@@ -30,11 +30,13 @@
 using namespace std;
 using grpc::Channel;
 using grpc::ClientAsyncResponseReader;
+using grpc::ClientAsyncWriter;
 using grpc::ClientContext;
 using grpc::CompletionQueue;
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
+using grpc::ServerReader;
 using grpc::Status;
 
 enum Role {

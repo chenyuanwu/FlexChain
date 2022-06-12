@@ -145,6 +145,14 @@ void *block_formation_thread(void *arg) {
     google::protobuf::Empty rsp;
     vector<unordered_set<string>> read_sets;
     vector<unordered_set<string>> write_sets;
+    
+    ClientContext context;
+    context.set_wait_for_ready(true);
+    CompletionQueue cq;
+    unique_ptr<ClientAsyncWriter<Block>> validator_stream(stub->Asyncsend_to_validator_stream(&context, &rsp, &cq, (void *)1));
+    bool ok;
+    void *got_tag;
+    cq.Next(&got_tag, &ok);
 
     while (!end_flag) {
         if (role == LEADER) {
@@ -180,42 +188,48 @@ void *block_formation_thread(void *arg) {
             }
             local_ops++;
 
-            unordered_set<string> read_set;
-            unordered_set<string> write_set;
-            for (int i = 0; i < transaction->read_set_size(); i++) {
-                read_set.insert(transaction->read_set(i).read_key());
-            }
-            for (int i = 0; i < transaction->write_set_size(); i++) {
-                write_set.insert(transaction->write_set(i).write_key());
-            }
-            read_sets.push_back(read_set);
-            write_sets.push_back(write_set);
+            // unordered_set<string> read_set;
+            // unordered_set<string> write_set;
+            // for (int i = 0; i < transaction->read_set_size(); i++) {
+            //     read_set.insert(transaction->read_set(i).read_key());
+            // }
+            // for (int i = 0; i < transaction->write_set_size(); i++) {
+            //     write_set.insert(transaction->write_set(i).write_key());
+            // }
+            // read_sets.push_back(read_set);
+            // write_sets.push_back(write_set);
 
-            transaction->clear_adjacency_list();
-            for (int target_index = 0; target_index < trans_index; target_index++) {
-                /* check read-write write-write write-read conflict */
-                if (has_rw_conflicts(target_index, trans_index, read_sets, write_sets) ||
-                    has_ww_conflicts(target_index, trans_index, write_sets) ||
-                    has_wr_conflicts(target_index, trans_index, read_sets, write_sets)) {
-                    transaction->add_adjacency_list(target_index);
-                }
-            }
-            trans_index++;
+            // transaction->clear_adjacency_list();
+            // for (int target_index = 0; target_index < trans_index; target_index++) {
+            //     /* check read-write write-write write-read conflict */
+            //     if (has_rw_conflicts(target_index, trans_index, read_sets, write_sets) ||
+            //         has_ww_conflicts(target_index, trans_index, write_sets) ||
+            //         has_wr_conflicts(target_index, trans_index, read_sets, write_sets)) {
+            //         transaction->add_adjacency_list(target_index);
+            //     }
+            // }
+            // trans_index++;
 
             if (curr_size >= max_block_size) {
                 /* cut the block and send it to all validators */
                 block.set_block_id(block_index);
                 if (role == LEADER) {
-                    ClientContext context;
-                    context.set_wait_for_ready(true);
-                    // stub->async()->send_to_validator(&context, &block, &rsp, [](Status s){});
+                    // ClientContext context;
+                    // context.set_wait_for_ready(true);
 
-                    Status status = stub->send_to_validator(&context, block, &rsp);  // TODO: use client stream + async
-                    if (!status.ok()) {
-                        log_err("block formation thread: gRPC failed with error message: %s.", status.error_message().c_str());
-                    } else {
-                        log_debug(stderr, "block formation thread: block #%d is sent to validator.", block_index);
-                    }
+                    validator_stream->Write(block, (void *)1);
+                    bool ok;
+                    void *got_tag;
+                    // cq.AsyncNext(&got_tag, &ok, gpr_time_0(GPR_CLOCK_REALTIME));
+                    cq.Next(&got_tag, &ok);
+
+                    // stub->async()->send_to_validator(&context, &block, &rsp, [](Status s){});
+                    // Status status = stub->send_to_validator(&context, block, &rsp);  // TODO: use client stream + async
+                    // if (!status.ok()) {
+                    //     log_err("block formation thread: gRPC failed with error message: %s.", status.error_message().c_str());
+                    // } else {
+                    //     log_debug(stderr, "block formation thread: block #%d is sent to validator.", block_index);
+                    // }
                 }
 
                 curr_size = 0;
@@ -263,10 +277,22 @@ class ConsensusCommImpl final : public ConsensusComm::Service {
         return Status::OK;
     }
 
-    Status send_to_leader(ServerContext *context, const Endorsement *endorsement, google::protobuf::Empty *response) override {
+    Status send_to_leader(ServerContext *context, const Endorsement* endorsement, google::protobuf::Empty *response) override {
         pthread_mutex_lock(&tq.mutex);
         tq.trans_queue.emplace(endorsement->SerializeAsString());
         pthread_mutex_unlock(&tq.mutex);
+
+        return Status::OK;
+    }
+
+    Status send_to_leader_stream(ServerContext *context, ServerReader<Endorsement>* reader, google::protobuf::Empty *response) override {
+        Endorsement endorsement;
+
+        while (reader->Read(&endorsement)) {
+            pthread_mutex_lock(&tq.mutex);
+            tq.trans_queue.emplace(endorsement.SerializeAsString());
+            pthread_mutex_unlock(&tq.mutex);
+        }
 
         return Status::OK;
     }
