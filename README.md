@@ -1,7 +1,7 @@
-# legochain
+# FlexChain
 
 ## Hardware Requirements
-At least 3 r320 instances on CloudLab.
+At least 3 c6220 instances on CloudLab.
 
 ## Software Dependencies
 - Ubuntu 18.04 or later versions
